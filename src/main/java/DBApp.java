@@ -127,7 +127,7 @@ public class DBApp implements DBAppInterface {
         }
 
         // Creating a File object
-        File file = new File("src/main/pages/" + tableName);
+        File file = new File("src/main/pages/" + tableName); // setting the path of the new folder
         // Creating the directory
         file.mkdir();
     }
