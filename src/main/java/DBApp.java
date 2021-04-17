@@ -1,6 +1,5 @@
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -10,6 +9,8 @@ public class DBApp implements DBAppInterface {
     private static String filePath = "src/main/resources/metadata.csv";
     private static String[] acceptableDataTypes = { "java.lang.Integer", "java.lang.String", "java.lang.Double",
             "java.util.Date" };
+
+    ArrayList<Table> tablesInfo;
 
     @Override
     public void init() {
@@ -49,7 +50,7 @@ public class DBApp implements DBAppInterface {
 
                 String tableName = tokens[0];
                 if (name.equals(tableName))
-                    return true;
+                    return true; // if tables exists
 
             }
         } catch (Exception e) {
@@ -127,14 +128,23 @@ public class DBApp implements DBAppInterface {
         }
 
         // Creating a File object
-        File file = new File("src/main/pages/" + tableName); // setting the path of the new folder
+        File tableFolderDir = new File("src/main/tables/" + tableName); // setting the path of the new folder
         // Creating the directory
-        file.mkdir();
+        tableFolderDir.mkdir();
     }
 
     @Override
     public void insertIntoTable(String tableName, Hashtable<String, Object> colNameValue) throws DBAppException {
-        // TODO Auto-generated method stub
+        File tableFolderDir = new File("src/main/tables/" + tableName);
+        String[] pagesList = tableFolderDir.list();
+
+        if (!checkName(tableName))
+            throw new DBAppException("Table not found aslan!");
+
+        if (pagesList.length == 0) {// inserting for 1st time - create page
+            Vector<Hashtable<String, Object>> page = new Vector<Hashtable<String, Object>>();
+
+        }
 
     }
 
