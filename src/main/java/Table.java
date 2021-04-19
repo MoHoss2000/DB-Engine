@@ -1,6 +1,6 @@
 import java.util.*;
 
-public class Table  {
+public class Table {
     String tableName;
     Column primaryKey;
     Vector<Column> columns;
@@ -10,12 +10,11 @@ public class Table  {
         columns = new Vector<Column>();
     }
 
-    public void addColumn(Column newCol){
+    public void addColumn(Column newCol) {
         columns.add(newCol);
     }
 
-    public void setPrimaryKey(Column primary){
+    public void setPrimaryKey(Column primary) {
         primaryKey = primary;
     }
-
 }

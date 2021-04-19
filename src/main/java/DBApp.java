@@ -1,8 +1,10 @@
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.DateFormat;
 import java.util.*;
 
 public class DBApp implements DBAppInterface {
@@ -144,26 +146,69 @@ public class DBApp implements DBAppInterface {
         Table table = new Table(tableName);
 
         String row;
-        String filePath = "src/main/resources/metadata.csv";
+        BufferedReader csvReader;
 
-        BufferedReader csvReader = new BufferedReader(new FileReader(filePath));
         try {
+            csvReader = new BufferedReader(new FileReader(filePath));
             while ((row = csvReader.readLine()) != null) {
                 String[] data = row.split(",");
+                String csvTableName = data[0];
 
-                System.out.println(data[0] + " " + data[1] + " " + data[2]);
+                if (csvTableName == tableName) {
+                    String colName = data[1];
+                    String colType = data[2];
+                    boolean isPrimary = Boolean.parseBoolean(data[3]);
+                    boolean isIndexed = Boolean.parseBoolean(data[4]);
+
+                    Object minValue = null;
+                    Object maxValue = null;
+
+                    switch (colType) {
+                    case "java.lang.Integer":
+                        minValue = Integer.parseInt(data[5]);
+                        maxValue = Integer.parseInt(data[6]);
+                        break;
+                    case "java.lang.Double":
+                        minValue = Double.parseDouble(data[5]);
+                        maxValue = Double.parseDouble(data[6]);
+                        break;
+                    case "java.lang.String":
+                        minValue = data[5];
+                        maxValue = data[6];
+                        break;
+                    case "java.lang.Date":
+                        minValue = Date.parse(data[5]);
+                        maxValue = Date.parse(data[6]);
+                        break;
+                    }
+
+                    Column column = new Column(colName, colType, minValue, maxValue, isIndexed, isPrimary);
+                    table.addColumn(column);
+
+                    if(isPrimary)
+                        table.setPrimaryKey(column);
+                }
+
             }
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+
+            csvReader.close();
+        } catch (Exception e1) {
+            e1.printStackTrace();
         }
-        csvReader.close();
+
+
 
         if (pagesList.length == 0) { // inserting for 1st time - create page
             Page newPage = new Page();
-            // Row rowData = new Row(colNameValue);
+            String primaryKey = table.primaryKey.colName;
+            Row rowData = new Row(colNameValue, primaryKey);
+
+            newPage.addRow(rowData);
+            
 
         }
+
+
 
     }
 

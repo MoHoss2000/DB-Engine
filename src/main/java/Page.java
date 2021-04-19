@@ -10,13 +10,23 @@ public class Page implements Serializable {
     private Vector<Row> pageRows;
 
     public Page() {
-        pageRows = new Vector<Row>();
-
+        // pageRows = new Vector<Row>();
     }
+
+    public Comparable getMinValue(){
+        Row minRow = pageRows.get(0);
+        return minRow.getPrimaryKeyValue();
+    }
+
+    public Comparable getMaxValue(){
+        Row maxRow = pageRows.lastElement();
+        return maxRow.getPrimaryKeyValue();
+    }
+
 
     public void addRow(Row row) {
         pageRows.add(row);
-        
+        Collections.sort(pageRows);
     }
 
     public boolean isFull() {
