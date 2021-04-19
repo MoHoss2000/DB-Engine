@@ -141,8 +141,27 @@ public class DBApp implements DBAppInterface {
         if (!checkName(tableName))
             throw new DBAppException("Table not found aslan!");
 
-        if (pagesList.length == 0) {// inserting for 1st time - create page
-            Vector<Hashtable<String, Object>> page = new Vector<Hashtable<String, Object>>();
+        Table table = new Table(tableName);
+
+        String row;
+        String filePath = "src/main/resources/metadata.csv";
+
+        BufferedReader csvReader = new BufferedReader(new FileReader(filePath));
+        try {
+            while ((row = csvReader.readLine()) != null) {
+                String[] data = row.split(",");
+
+                System.out.println(data[0] + " " + data[1] + " " + data[2]);
+            }
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        csvReader.close();
+
+        if (pagesList.length == 0) { // inserting for 1st time - create page
+            Page newPage = new Page();
+            // Row rowData = new Row(colNameValue);
 
         }
 
