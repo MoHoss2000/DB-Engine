@@ -1,10 +1,13 @@
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class DBApp implements DBAppInterface {
@@ -143,73 +146,84 @@ public class DBApp implements DBAppInterface {
         if (!checkName(tableName))
             throw new DBAppException("Table not found aslan!");
 
-        Table table = new Table(tableName);
+        // Table table = new Table(tableName);
 
         String row;
         BufferedReader csvReader;
+        String primaryKey = null;
 
         try {
             csvReader = new BufferedReader(new FileReader(filePath));
             while ((row = csvReader.readLine()) != null) {
                 String[] data = row.split(",");
                 String csvTableName = data[0];
+                String colName = data[1];
+                String colType = data[2];
+                boolean isPrimary = Boolean.parseBoolean(data[3]);
 
-                if (csvTableName == tableName) {
-                    String colName = data[1];
-                    String colType = data[2];
-                    boolean isPrimary = Boolean.parseBoolean(data[3]);
-                    boolean isIndexed = Boolean.parseBoolean(data[4]);
+                if (isPrimary)
+                    primaryKey = colName;
 
-                    Object minValue = null;
-                    Object maxValue = null;
+                Comparable minValue = null;
+                Comparable maxValue = null;
 
-                    switch (colType) {
-                    case "java.lang.Integer":
-                        minValue = Integer.parseInt(data[5]);
-                        maxValue = Integer.parseInt(data[6]);
-                        break;
-                    case "java.lang.Double":
-                        minValue = Double.parseDouble(data[5]);
-                        maxValue = Double.parseDouble(data[6]);
-                        break;
-                    case "java.lang.String":
-                        minValue = data[5];
-                        maxValue = data[6];
-                        break;
-                    case "java.lang.Date":
-                        minValue = Date.parse(data[5]);
-                        maxValue = Date.parse(data[6]);
-                        break;
-                    }
-
-                    Column column = new Column(colName, colType, minValue, maxValue, isIndexed, isPrimary);
-                    table.addColumn(column);
-
-                    if(isPrimary)
-                        table.setPrimaryKey(column);
+                switch (colType) {
+                case "java.lang.Double":
+                    minValue = Double.parseDouble(data[5]);
+                    maxValue = Double.parseDouble(data[6]);
+                    break;
+                case "java.lang.Integer":
+                    minValue = Integer.parseInt(data[5]);
+                    maxValue = Integer.parseInt(data[6]);
+                    break;
+                case "java.util.Date":
+                    minValue = new SimpleDateFormat("YYYY-MM-DD").parse(data[5]);
+                    maxValue = new SimpleDateFormat("YYYY-MM-DD").parse(data[6]);
+                    break;
+                default:
+                    minValue = data[5];
+                    maxValue = data[6];
                 }
 
-            }
+                if (csvTableName == tableName) {
+                    if (isPrimary && !colNameValue.containsKey(colName))
+                        throw new DBAppException("Primary key must be inserted");
 
+                    if (colNameValue.containsKey(colName)) {
+                        if (!colType.equals(colNameValue.get(colName).getClass().getName()))
+                            throw new DBAppException("Invalid data types!");
+
+                        Comparable colValue = (Comparable) colNameValue.get(colName);
+
+                        if (minValue.compareTo(colValue) > 0 || maxValue.compareTo(colValue) < 0) {
+                            throw new DBAppException("One or more column not within the valid range");
+                        }
+                    }
+                }
+            }
             csvReader.close();
         } catch (Exception e1) {
             e1.printStackTrace();
         }
 
-
-
         if (pagesList.length == 0) { // inserting for 1st time - create page
             Page newPage = new Page();
-            String primaryKey = table.primaryKey.colName;
-            Row rowData = new Row(colNameValue, primaryKey);
 
-            newPage.addRow(rowData);
-            
+            Row newRow = new Row(colNameValue, primaryKey);
+            newPage.addRow(newRow);
+
+            try {
+                FileOutputStream fileOut = new FileOutputStream("src/main/tables/" + tableName + "/1.class");
+                ObjectOutputStream out = new ObjectOutputStream(fileOut);
+                out.writeObject(newPage);
+                out.close();
+                fileOut.close();
+                // System.out.printf("Serialized data is saved in /tmp/employee.ser");
+            } catch (IOException i) {
+                i.printStackTrace();
+            }
 
         }
-
-
-
     }
 
     @Override
@@ -233,25 +247,15 @@ public class DBApp implements DBAppInterface {
 
     public static void main(String[] args) throws IOException {
         DBApp app = new DBApp();
-        // app.checkName("");
-        Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
-        htblColNameType.put("id", "java.lang.Integer");
-        htblColNameType.put("name", "java.lang.String");
-        htblColNameType.put("gpa", "java.lang.Double");
 
-        Hashtable<String, String> htblColNameMin = new Hashtable<String, String>();
-        htblColNameMin.put("id", "0");
-        htblColNameMin.put("name", "A");
-        htblColNameMin.put("gpa", "0");
-
-        Hashtable<String, String> htblColNameMax = new Hashtable<String, String>();
-        htblColNameMax.put("id", "100");
-        htblColNameMax.put("name", "ZZZ");
-        htblColNameMax.put("gpa", "999");
+        Hashtable<String, Object> colNameValue = new Hashtable<String, Object>();
+        colNameValue.put("id", 4);
+        colNameValue.put("gpa", 0.9);
 
         try {
-            app.createTable("Students", "id", htblColNameType, htblColNameMin, htblColNameMax);
+            app.insertIntoTable("students", colNameValue);
         } catch (DBAppException e) {
+            // TODO Auto-generated catch block
             e.printStackTrace();
         }
 

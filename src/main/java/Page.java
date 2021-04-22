@@ -10,19 +10,29 @@ public class Page implements Serializable {
     private Vector<Row> pageRows;
 
     public Page() {
-        // pageRows = new Vector<Row>();
+        pageRows = new Vector<Row>();
     }
 
-    public Comparable getMinValue(){
+    public Comparable getMinValue() {
         Row minRow = pageRows.get(0);
         return minRow.getPrimaryKeyValue();
     }
 
-    public Comparable getMaxValue(){
+    public Comparable getMaxValue() {
         Row maxRow = pageRows.lastElement();
         return maxRow.getPrimaryKeyValue();
     }
 
+    public boolean checkIfPrimaryKeyExists(Comparable primaryKey) {
+        boolean exists = false;
+        for (Row row : pageRows) {
+            Comparable rowPrimaryKey = row.getPrimaryKeyValue();
+            if (rowPrimaryKey.compareTo(primaryKey) == 0)
+                exists = true;
+        }
+
+        return exists;
+    }
 
     public void addRow(Row row) {
         pageRows.add(row);

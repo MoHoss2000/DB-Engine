@@ -1,20 +1,19 @@
 import java.util.*;
 
 public class Table {
-    String tableName;
-    Column primaryKey;
-    Vector<Column> columns;
+    private String tableName;
+    private String primaryKey; // name of primary column
+    private Vector<String> pagePaths;
 
-    public Table(String tableName) {
+
+    public Table(String tableName, String primaryKey) {
         this.tableName = tableName;
-        columns = new Vector<Column>();
+        pagePaths = new Vector<String>();
+        this.primaryKey = primaryKey;
     }
 
-    public void addColumn(Column newCol) {
-        columns.add(newCol);
-    }
 
-    public void setPrimaryKey(Column primary) {
-        primaryKey = primary;
-    }
+
+
+
 }

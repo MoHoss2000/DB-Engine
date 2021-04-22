@@ -1,3 +1,4 @@
+
 public class Column {
     String colName;
     String colType;
@@ -6,8 +7,7 @@ public class Column {
     boolean isIndexed;
     boolean isPrimary;
 
-    public Column(String colName, String colType, Object minValue, Object maxValue, 
-            boolean isIndexed,
+    public Column(String colName, String colType, Object minValue, Object maxValue, boolean isIndexed,
             boolean isPrimary) {
         this.colName = colName;
         this.colType = colType;
@@ -15,6 +15,6 @@ public class Column {
         this.maxValue = maxValue;
         this.isIndexed = isIndexed;
         this.isPrimary = isPrimary;
-    }
 
+    }
 }
