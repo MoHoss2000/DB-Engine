@@ -1,11 +1,11 @@
 import java.io.BufferedReader;
-import java.io.File;
+import java.io.*;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -17,11 +17,26 @@ public class DBApp implements DBAppInterface {
     private static String filePath = "src/main/resources/metadata.csv";
     private static String[] acceptableDataTypes = { "java.lang.Integer", "java.lang.String", "java.lang.Double",
             "java.util.Date" };
+    private static int maxNoOfRows;
 
     ArrayList<Table> tablesInfo;
 
     @Override
     public void init() {
+        Properties prop = new Properties();
+        String fileName = "src/main/resources/DBApp.config";
+        InputStream is = null;
+        try {
+            is = new FileInputStream(fileName);
+        } catch (FileNotFoundException ex) {
+
+        }
+        try {
+            prop.load(is);
+        } catch (IOException ex) {
+
+        }
+        maxNoOfRows = Integer.parseInt(prop.getProperty("MaximumRowsCountinPage")); // max row limit
 
     }
 
@@ -175,7 +190,8 @@ public class DBApp implements DBAppInterface {
 
     @Override
     public void insertIntoTable(String tableName, Hashtable<String, Object> colNameValue) throws DBAppException {
-        Table table = (Table) deserializeFile("src/main/tables/" + tableName + ".class");
+        String tablePath = "src/main/tables/" + tableName + ".class";
+        Table table = (Table) deserializeFile(tableName);
 
         if (!checkName(tableName))
             throw new DBAppException("Table not found aslan!");
@@ -242,12 +258,30 @@ public class DBApp implements DBAppInterface {
             e1.printStackTrace();
         }
 
+        Row newRow = new Row(colNameValue, primaryKey);
+
         if (table.getNoOfPages() == 0) { // inserting for 1st time - create page
-            Row newRow = new Row(colNameValue, primaryKey);
             table.addPage(newRow);
             serializeObject(table, "src/main/tables/" + tableName + ".class");
         } else {
-            
+            PageData pageData = table.getPageForInsertion(newRow.getPrimaryKeyValue());
+            if(pageData == null)   
+                throw new DBAppException("Duplicate primary key");
+
+
+            // the page i want to insert in is not full
+            if (pageData.getNoOfRows() < maxNoOfRows) { 
+                String pagePath = pageData.getPagePath();
+                Page page = (Page) deserializeFile(pagePath);
+                
+                page.addRow(newRow);
+                pageData.incrementRows();
+                pageData.setMinKey(page.getMinValue());
+                pageData.setMaxKey(page.getMaxValue());
+
+                serializeObject(page, pagePath);
+                serializeObject(table, tablePath);
+            }
         }
     }
 
