@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.*;
 
 public class Page implements Serializable {
-    private int pageNo;
+    private static final long serialVersionUID = 2529685098267757690L;
     private Vector<Row> pageRows;
 
     public Page() {
