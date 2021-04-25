@@ -1,5 +1,6 @@
-import java.io.Serializable;
-import java.util.Collection;
+import java.io.FileOutputStream;
+import java.io.*;
+import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.Vector;
 
@@ -8,12 +9,14 @@ public class PageData implements Serializable, Comparable {
     private Comparable minKey;
     private Comparable maxKey;
     private int noOfRows;
+    private Vector<PageData> overflowPagesData;
 
     public PageData(String pagePath, Comparable minKey, Comparable maxKey, int noOfRows) {
         this.pagePath = pagePath;
         this.minKey = minKey;
         this.maxKey = maxKey;
         this.noOfRows = noOfRows;
+        overflowPagesData = new Vector<PageData>();
     }
 
     public int getNoOfRows() {
@@ -48,16 +51,59 @@ public class PageData implements Serializable, Comparable {
         maxKey = key;
     }
 
+    public void addNewOverflowPage(Row row){
+        Page newPage = new Page();
+        newPage.addRow(row);
+
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        long fileName = timestamp.getTime();
+
+        String pagePath = "src/main/resources/data/"+ fileName + ".class";
+
+        PageData pageData = new PageData(pagePath, row.getPrimaryKeyValue(), row.getPrimaryKeyValue(), 1);
+        overflowPagesData.add(pageData);
+
+        serializeObject(newPage, pagePath);
+    }
+
+    public Vector<PageData> getOverflowPagesData(){
+        return overflowPagesData;
+    }
+
     @Override
     public int compareTo(Object o) {
-        // if (o instanceof PageData) {
         PageData pageToCompare = (PageData) o;
         return minKey.compareTo(pageToCompare.maxKey);
-        // } else {
-        // Row row = (Row) o;
-        // if(maxKey.compareTo(row) > 0 && minKey.compareTo(row) < 0) return 0;
-        // else if(maxKey.compareTo(row) )
-        // }
+ 
+    }
+
+    public void serializeObject(Serializable object, String path) {
+        try {
+            FileOutputStream fileOut = new FileOutputStream(path);
+            ObjectOutputStream out = new ObjectOutputStream(fileOut);
+            out.writeObject(object);
+            out.close();
+            fileOut.close();
+        } catch (IOException i) {
+            i.printStackTrace();
+        }
+    }
+
+    public Object deserializeFile(String path) {
+        Object result = null;
+        try {
+            FileInputStream fileIn = new FileInputStream(path);
+            ObjectInputStream in = new ObjectInputStream(fileIn);
+            result = in.readObject();
+            in.close();
+            fileIn.close();
+        } catch (IOException i) {
+            i.printStackTrace();
+        } catch (ClassNotFoundException c) {
+            c.printStackTrace();
+        }
+
+        return result;
     }
 
     public static void main(String[] args) {

@@ -20,6 +20,10 @@ public class Table implements Serializable {
         return pagesInfo.size();
     }
 
+    public Vector<PageData> getPagesInfo(){
+        return pagesInfo;
+    }    
+
     public PageData getPageForInsertion(Comparable primaryKey) {
         int noOfPages = getNoOfPages();
 
@@ -75,10 +79,12 @@ public class Table implements Serializable {
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         long fileName = timestamp.getTime();
 
-        String pagePath = "src/main/pages/" + tableName + "/" + fileName + ".class";
+        String pagePath = "src/main/resources/data/" + fileName + ".class";
 
         PageData pageData = new PageData(pagePath, row.getPrimaryKeyValue(), row.getPrimaryKeyValue(), 1);
         pagesInfo.add(pageData);
+
+        Collections.sort(pagesInfo); // 3ashwa2eya 
 
         serializeObject(newPage, pagePath);
     }

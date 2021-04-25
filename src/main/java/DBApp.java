@@ -13,6 +13,8 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import javax.naming.ldap.PagedResultsControl;
+
 public class DBApp implements DBAppInterface {
     private static String filePath = "src/main/resources/metadata.csv";
     private static String[] acceptableDataTypes = { "java.lang.Integer", "java.lang.String", "java.lang.Double",
@@ -150,9 +152,9 @@ public class DBApp implements DBAppInterface {
             }
         }
 
-        File tableFolderDir = new File("src/main/pages/" + tableName); // setting the path of the new folder
-        // Creating the directory
-        tableFolderDir.mkdir();
+        // File tableFolderDir = new File("src/main/pages/" + tableName); // setting the path of the new folder
+        // // Creating the directory
+        // tableFolderDir.mkdir();
 
         Table newTable = new Table(tableName, clusteringKey);
         serializeObject(newTable, "src/main/tables/" + tableName + ".class");
@@ -191,7 +193,7 @@ public class DBApp implements DBAppInterface {
     @Override
     public void insertIntoTable(String tableName, Hashtable<String, Object> colNameValue) throws DBAppException {
         String tablePath = "src/main/tables/" + tableName + ".class";
-        Table table = (Table) deserializeFile(tableName);
+        Table table = (Table) deserializeFile(tablePath);
 
         if (!checkName(tableName))
             throw new DBAppException("Table not found aslan!");
@@ -265,15 +267,14 @@ public class DBApp implements DBAppInterface {
             serializeObject(table, "src/main/tables/" + tableName + ".class");
         } else {
             PageData pageData = table.getPageForInsertion(newRow.getPrimaryKeyValue());
-            if(pageData == null)   
+            if (pageData == null)
                 throw new DBAppException("Duplicate primary key");
 
-
             // the page i want to insert in is not full
-            if (pageData.getNoOfRows() < maxNoOfRows) { 
+            if (pageData.getNoOfRows() < maxNoOfRows) {
                 String pagePath = pageData.getPagePath();
                 Page page = (Page) deserializeFile(pagePath);
-                
+
                 page.addRow(newRow);
                 pageData.incrementRows();
                 pageData.setMinKey(page.getMinValue());
@@ -281,7 +282,93 @@ public class DBApp implements DBAppInterface {
 
                 serializeObject(page, pagePath);
                 serializeObject(table, tablePath);
+                return;
             }
+
+            Vector<PageData> pagesInfo = table.getPagesInfo();
+            int indexOfNextPageData = pagesInfo.indexOf(pageData) + 1;
+
+            if (indexOfNextPageData == pagesInfo.size()) { // i need to create a new page
+                Comparable maxInOldPage = pageData.getMaxKey();
+                if (newRow.getPrimaryKeyValue().compareTo(maxInOldPage) < 0) {
+                    // key i want to insert is less than the max key in the old page
+                    // i need to shift the max key to the new page
+                    Page oldPage = (Page) deserializeFile(pageData.getPagePath());
+                    Row lastRow = oldPage.removeLastRow();
+
+                    oldPage.addRow(newRow);
+
+                    pageData.setMaxKey(oldPage.getMaxValue());
+                    pageData.setMinKey(oldPage.getMinValue());
+
+                    table.addPage(lastRow);
+
+                    serializeObject(oldPage, pageData.getPagePath());
+                } else {
+                    table.addPage(newRow);
+                }
+
+                serializeObject(table, tablePath);
+                return;
+            }
+
+            PageData nextPageData = pagesInfo.elementAt(indexOfNextPageData);
+
+            if (nextPageData.getNoOfRows() < maxNoOfRows) {
+                Comparable maxInOldPage = pageData.getMaxKey();
+                if (newRow.getPrimaryKeyValue().compareTo(maxInOldPage) < 0) {
+                    Page loadedPage = (Page) deserializeFile(pageData.getPagePath()); // old page
+                    Row lastRow = loadedPage.removeLastRow();
+
+                    loadedPage.addRow(newRow);
+
+                    pageData.setMaxKey(loadedPage.getMaxValue());
+                    pageData.setMinKey(loadedPage.getMinValue());
+                    serializeObject(loadedPage, pageData.getPagePath());
+
+                    loadedPage =  (Page) deserializeFile(nextPageData.getPagePath()); // next page
+
+                    loadedPage.addRow(lastRow);
+                    nextPageData.setMaxKey(loadedPage.getMaxValue());
+                    nextPageData.setMinKey(loadedPage.getMinValue());
+                    nextPageData.incrementRows();
+
+                    serializeObject(loadedPage, nextPageData.getPagePath());
+                } else {
+                    Page loadedPage = (Page) deserializeFile(nextPageData.getPagePath()); // old page
+                    loadedPage.addRow(newRow);
+
+                    nextPageData.setMaxKey(loadedPage.getMaxValue());
+                    nextPageData.setMinKey(loadedPage.getMinValue());
+                    nextPageData.incrementRows();
+                    serializeObject(loadedPage, nextPageData.getPagePath());
+                }
+
+                serializeObject(table, tablePath);
+                return;
+            }
+            
+            // we need to create overflow page linked to the original page i want to insert in
+            
+            Vector<PageData> overflowPagesData = pageData.getOverflowPagesData();
+            
+            for(int i=0; i<overflowPagesData.size(); i++){
+                PageData currentOverflow = overflowPagesData.get(i);
+                if(currentOverflow.getNoOfRows() < maxNoOfRows){
+                    Page loadedPage = (Page) deserializeFile(currentOverflow.getPagePath()); // old page
+                    loadedPage.addRow(newRow);
+
+                    currentOverflow.setMaxKey(loadedPage.getMaxValue());
+                    currentOverflow.setMinKey(loadedPage.getMinValue());
+
+                    serializeObject(loadedPage, currentOverflow.getPagePath());
+                    serializeObject(table, tablePath);
+                    return;
+                }
+            }
+
+            pageData.addNewOverflowPage(newRow); //creating new overflow
+            serializeObject(table, tablePath);
         }
     }
 

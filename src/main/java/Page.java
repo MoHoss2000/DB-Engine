@@ -23,6 +23,10 @@ public class Page implements Serializable {
         return maxRow.getPrimaryKeyValue();
     }
 
+    public Row removeLastRow(){
+        return pageRows.remove(pageRows.size() - 1);
+    }
+
     public boolean checkIfPrimaryKeyExists(Comparable primaryKey) {
         boolean exists = false;
         for (Row row : pageRows) {
