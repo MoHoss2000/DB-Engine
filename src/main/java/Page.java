@@ -3,6 +3,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class Page implements Serializable {
@@ -23,7 +25,7 @@ public class Page implements Serializable {
         return maxRow.getPrimaryKeyValue();
     }
 
-    public Row removeLastRow(){
+    public Row removeLastRow() {
         return pageRows.remove(pageRows.size() - 1);
     }
 
@@ -61,5 +63,40 @@ public class Page implements Serializable {
         int rowCount = pageRows.size(); // actual rows in page
 
         return rowCount == maxCount;
+    }
+
+    public static void main(String[] args) {
+        // Vector<Integer> vector = new Vector<Integer>();
+        // vector.add(1);
+        // vector.add(2);
+        // vector.add(3);
+
+        // vector.remove(Integer.valueOf(2));
+
+        // System.out.println(vector);
+
+        // 100 - 2000
+        // 511
+        Comparable minValue = "100";
+        Comparable maxValue = "2000";
+        Comparable colValue = "511";
+
+        if (minValue.compareTo(colValue) > 0 || maxValue.compareTo(colValue) < 0) {
+
+            System.out.println("error");
+            // throw new DBAppException("One or more column not within the valid range");
+        }
+        
+
+        try {
+            Date d = new SimpleDateFormat("yyyy-MM-dd").parse("2000-04-07");
+            System.out.println(d);
+
+        } catch (ParseException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+
     }
 }

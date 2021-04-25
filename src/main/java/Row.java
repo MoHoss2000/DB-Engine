@@ -11,6 +11,9 @@ public class Row implements Serializable, Comparable<Object> {
     }
 
     public Comparable<Object> getPrimaryKeyValue() {
+        // if(primaryKey == null){
+        //     System.out.println("ERROR");
+        // }
         return (Comparable<Object>) rowData.get(primaryKey);
     }
 

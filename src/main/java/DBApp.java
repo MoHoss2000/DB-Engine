@@ -130,7 +130,7 @@ public class DBApp implements DBAppInterface {
 
             String colName = colNames.get(i);
 
-            System.out.println(colName);
+            // System.out.println(colName);
 
             String colMin = colNameMin.get(colName);
             String colMax = colNameMax.get(colName);
@@ -152,7 +152,8 @@ public class DBApp implements DBAppInterface {
             }
         }
 
-        // File tableFolderDir = new File("src/main/pages/" + tableName); // setting the path of the new folder
+        // File tableFolderDir = new File("src/main/pages/" + tableName); // setting the
+        // path of the new folder
         // // Creating the directory
         // tableFolderDir.mkdir();
 
@@ -190,6 +191,8 @@ public class DBApp implements DBAppInterface {
         return result;
     }
 
+    // x, y, z == table columns
+    // x,y,z,a == column i want to insert
     @Override
     public void insertIntoTable(String tableName, Hashtable<String, Object> colNameValue) throws DBAppException {
         String tablePath = "src/main/tables/" + tableName + ".class";
@@ -202,6 +205,7 @@ public class DBApp implements DBAppInterface {
         BufferedReader csvReader;
         String primaryKey = null;
 
+        ArrayList<String> tableColumns = new ArrayList<String>();
         try {
             csvReader = new BufferedReader(new FileReader(filePath));
             while ((row = csvReader.readLine()) != null) {
@@ -210,9 +214,6 @@ public class DBApp implements DBAppInterface {
                 String colName = data[1];
                 String colType = data[2];
                 boolean isPrimary = Boolean.parseBoolean(data[3]);
-
-                if (isPrimary)
-                    primaryKey = colName;
 
                 Comparable minValue = null;
                 Comparable maxValue = null;
@@ -227,15 +228,20 @@ public class DBApp implements DBAppInterface {
                     maxValue = Integer.parseInt(data[6]);
                     break;
                 case "java.util.Date":
-                    minValue = new SimpleDateFormat("YYYY-MM-DD").parse(data[5]);
-                    maxValue = new SimpleDateFormat("YYYY-MM-DD").parse(data[6]);
+                    minValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[5]);
+                    maxValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[6]);
                     break;
                 default:
                     minValue = data[5];
                     maxValue = data[6];
                 }
 
-                if (csvTableName == tableName) {
+                if (csvTableName.equals(tableName)) { // checking table name
+                    tableColumns.add(colName);
+
+                    if (isPrimary)
+                        primaryKey = colName;
+
                     if (isPrimary && !colNameValue.containsKey(colName))
                         throw new DBAppException("Primary key must be inserted");
 
@@ -248,7 +254,13 @@ public class DBApp implements DBAppInterface {
 
                         Comparable colValue = (Comparable) colNameValue.get(colName);
 
+                        // 100 - 2000
+                        // 511
+
                         if (minValue.compareTo(colValue) > 0 || maxValue.compareTo(colValue) < 0) {
+
+                            // System.out.println("min: " + minValue + " " + " max :" + maxValue + " value:
+                            // " + colValue + colValue.getClass().getName());
                             throw new DBAppException("One or more column not within the valid range");
                         }
                     }
@@ -260,6 +272,16 @@ public class DBApp implements DBAppInterface {
             e1.printStackTrace();
         }
 
+        Enumeration<String> enumeration = colNameValue.keys(); 
+        // col names that the user inserted
+
+        while (enumeration.hasMoreElements()) {
+            String key = enumeration.nextElement();
+            if (!tableColumns.contains(key))
+                throw new DBAppException("Invalid column name");
+
+        }
+
         Row newRow = new Row(colNameValue, primaryKey);
 
         if (table.getNoOfPages() == 0) { // inserting for 1st time - create page
@@ -268,8 +290,10 @@ public class DBApp implements DBAppInterface {
         } else {
             PageData pageData = table.getPageForInsertion(newRow.getPrimaryKeyValue());
             if (pageData == null)
-                throw new DBAppException("Duplicate primary key");
-
+            {  
+                System.out.println(tableName + " " + newRow.getPrimaryKeyValue());
+                // throw new DBAppException("Duplicate primary key");
+            }
             // the page i want to insert in is not full
             if (pageData.getNoOfRows() < maxNoOfRows) {
                 String pagePath = pageData.getPagePath();
@@ -326,7 +350,7 @@ public class DBApp implements DBAppInterface {
                     pageData.setMinKey(loadedPage.getMinValue());
                     serializeObject(loadedPage, pageData.getPagePath());
 
-                    loadedPage =  (Page) deserializeFile(nextPageData.getPagePath()); // next page
+                    loadedPage = (Page) deserializeFile(nextPageData.getPagePath()); // next page
 
                     loadedPage.addRow(lastRow);
                     nextPageData.setMaxKey(loadedPage.getMaxValue());
@@ -347,14 +371,15 @@ public class DBApp implements DBAppInterface {
                 serializeObject(table, tablePath);
                 return;
             }
-            
-            // we need to create overflow page linked to the original page i want to insert in
-            
+
+            // we need to create overflow page linked to the original page i want to insert
+            // in
+
             Vector<PageData> overflowPagesData = pageData.getOverflowPagesData();
-            
-            for(int i=0; i<overflowPagesData.size(); i++){
+
+            for (int i = 0; i < overflowPagesData.size(); i++) {
                 PageData currentOverflow = overflowPagesData.get(i);
-                if(currentOverflow.getNoOfRows() < maxNoOfRows){
+                if (currentOverflow.getNoOfRows() < maxNoOfRows) {
                     Page loadedPage = (Page) deserializeFile(currentOverflow.getPagePath()); // old page
                     loadedPage.addRow(newRow);
 
@@ -367,7 +392,7 @@ public class DBApp implements DBAppInterface {
                 }
             }
 
-            pageData.addNewOverflowPage(newRow); //creating new overflow
+            pageData.addNewOverflowPage(newRow); // creating new overflow
             serializeObject(table, tablePath);
         }
     }
@@ -393,8 +418,8 @@ public class DBApp implements DBAppInterface {
 
     public static void main(String[] args) throws IOException {
         DBApp dbApp = new DBApp();
-
-        // String tableName = "students";
+        dbApp.init();
+        String tableName = "students";
 
         // Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
         // htblColNameType.put("id", "java.lang.String");
@@ -424,23 +449,15 @@ public class DBApp implements DBAppInterface {
         // e.printStackTrace();
         // }
 
-        // Hashtable<String, Object> colNameValue = new Hashtable<String, Object>();
-        // colNameValue.put("id", 4);
-        // colNameValue.put("gpa", 0.9);
+        Hashtable<String, Object> colNameValue = new Hashtable<String, Object>();
+        colNameValue.put("id", 11);
+        colNameValue.put("gpa", 0.9);
 
-        // try {
-        // dbApp.insertIntoTable("students", colNameValue);
-        // } catch (DBAppException e) {
-        // // TODO Auto-generated catch block
-        // e.printStackTrace();
-        // }
-
-        // Table table = new Table("test", "id");
-        // dbApp.serializeObject(table, "src/main/tables/test.class");
-
-        // Table deserialized = (Table)
-        // dbApp.deserializeFile("src/main/tables/test.class");
-        // System.out.println(deserialized.getClass().getName());
-
+        try {
+            dbApp.insertIntoTable("students", colNameValue);
+        } catch (DBAppException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 }

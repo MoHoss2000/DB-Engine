@@ -20,9 +20,9 @@ public class Table implements Serializable {
         return pagesInfo.size();
     }
 
-    public Vector<PageData> getPagesInfo(){
+    public Vector<PageData> getPagesInfo() {
         return pagesInfo;
-    }    
+    }
 
     public PageData getPageForInsertion(Comparable primaryKey) {
         int noOfPages = getNoOfPages();
@@ -34,9 +34,9 @@ public class Table implements Serializable {
         }
 
         int index = binarySearch(minKeys, 0, noOfPages - 1, primaryKey);
-     
+
         if (index == -1)
-        return null;
+            return null;
 
         return pagesInfo.get(index);
     }
@@ -46,11 +46,11 @@ public class Table implements Serializable {
             // 0 1
             int mid = l + (r - l) / 2;
 
-            if (arr[mid].compareTo(x) == 0 || arr[mid + 1].compareTo(x) == 0)
-                return -1;
-
             if (mid + 1 == arr.length)
                 return mid;
+
+            if (arr[mid].compareTo(x) == 0 || arr[mid + 1].compareTo(x) == 0)
+                return -1;
 
             if (arr[mid].compareTo(x) < 0 && arr[mid + 1].compareTo(x) > 0)
                 return mid;
@@ -84,7 +84,7 @@ public class Table implements Serializable {
         PageData pageData = new PageData(pagePath, row.getPrimaryKeyValue(), row.getPrimaryKeyValue(), 1);
         pagesInfo.add(pageData);
 
-        Collections.sort(pagesInfo); // 3ashwa2eya 
+        Collections.sort(pagesInfo); // 3ashwa2eya
 
         serializeObject(newPage, pagePath);
     }
