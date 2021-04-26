@@ -15,6 +15,10 @@ public class Page implements Serializable {
         pageRows = new Vector<Row>();
     }
 
+    public int binarySearchInPage(Comparable key) {
+        return Collections.binarySearch(pageRows, key);
+    }
+
     public Comparable getMinValue() {
         Row minRow = pageRows.get(0);
         return minRow.getPrimaryKeyValue();
@@ -43,6 +47,14 @@ public class Page implements Serializable {
     public void addRow(Row row) {
         pageRows.add(row);
         Collections.sort(pageRows);
+    }
+
+    public void deleteRow(int index){
+        pageRows.remove(index);
+    }
+
+    public Row getRow(int index){
+        return pageRows.get(index);
     }
 
     public boolean isFull() {
@@ -86,7 +98,6 @@ public class Page implements Serializable {
             System.out.println("error");
             // throw new DBAppException("One or more column not within the valid range");
         }
-        
 
         try {
             Date d = new SimpleDateFormat("yyyy-MM-dd").parse("2000-04-07");
@@ -96,7 +107,6 @@ public class Page implements Serializable {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-
 
     }
 }

@@ -24,7 +24,11 @@ public class Table implements Serializable {
         return pagesInfo;
     }
 
-    public PageData getPageForInsertion(Comparable primaryKey) {
+    public String getPrimaryKeyCol() {
+        return primaryKey;
+    }
+
+    public PageData getPageForKey(Comparable primaryKey) {
         int noOfPages = getNoOfPages();
 
         Comparable minKeys[] = new Comparable[noOfPages];
@@ -35,13 +39,10 @@ public class Table implements Serializable {
 
         int index = binarySearch(minKeys, 0, noOfPages - 1, primaryKey);
 
-        if (index == -1)
-            return null;
-
         return pagesInfo.get(index);
     }
 
-    int binarySearch(Comparable arr[], int l, int r, Comparable x) {
+    private int binarySearch(Comparable arr[], int l, int r, Comparable x) {
         if (r >= l) {
             // 0 1
             int mid = l + (r - l) / 2;
@@ -49,14 +50,11 @@ public class Table implements Serializable {
             if (mid + 1 == arr.length)
                 return mid;
 
-            if (arr[mid].compareTo(x) == 0 || arr[mid + 1].compareTo(x) == 0)
-                return -1;
+            if (arr[mid].compareTo(x) == 0)
+                return mid;
 
             if (arr[mid].compareTo(x) < 0 && arr[mid + 1].compareTo(x) > 0)
                 return mid;
-
-            // 2 5 10 20 30
-            // = 1
 
             // If element is smaller than mid, then
             // it can only be present in left subarray
@@ -87,6 +85,17 @@ public class Table implements Serializable {
         Collections.sort(pagesInfo); // 3ashwa2eya
 
         serializeObject(newPage, pagePath);
+    }
+
+    public void insertPage(PageData pageData){
+        pagesInfo.add(pageData);
+        Collections.sort(pagesInfo); 
+    }
+
+    public void deletePage(PageData pageData) {
+        pagesInfo.remove(pageData);
+        File pageFile = new File(pageData.getPagePath());
+        pageFile.delete();
     }
 
     public void serializeObject(Serializable object, String path) {
@@ -143,7 +152,7 @@ public class Table implements Serializable {
         t.pagesInfo = pagesInfo;
 
         // System.out.println(t.getPageForInsertion(10));
-        System.out.println(t.getPageForInsertion(1));
+        System.out.println(t.getPageForKey(1));
 
         // System.out.println;
     }

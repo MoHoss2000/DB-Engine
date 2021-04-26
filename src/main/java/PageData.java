@@ -70,6 +70,10 @@ public class PageData implements Serializable, Comparable {
         return overflowPagesData;
     }
 
+    public void setOverflowPagesData(Vector<PageData> overflows){
+        overflowPagesData = overflows;
+    }
+
     @Override
     public int compareTo(Object o) {
         PageData pageToCompare = (PageData) o;
@@ -107,23 +111,25 @@ public class PageData implements Serializable, Comparable {
     }
 
     public static void main(String[] args) {
-        PageData p1 = new PageData("dada", 2, 4, 2);
-        PageData p2 = new PageData("dada", 5, 8, 2);
-        PageData p3 = new PageData("dada", 10, 15, 2);
-        PageData p4 = new PageData("dada", 20, 25, 2);
-        PageData p5 = new PageData("dada", 30, 35, 2);
+        // PageData p1 = new PageData("dada", 2, 4, 2);
+        // PageData p2 = new PageData("dada", 5, 8, 2);
+        // PageData p3 = new PageData("dada", 10, 15, 2);
+        // PageData p4 = new PageData("dada", 20, 25, 2);
+        // PageData p5 = new PageData("dada", 30, 35, 2);
 
-        Vector pagesInfo = new Vector<>();
-        pagesInfo.add(p2);
-        pagesInfo.add(p3);
-        pagesInfo.add(p1);
-        pagesInfo.add(p4);
-        pagesInfo.add(p5);
+        // Vector pagesInfo = new Vector<>();
+        // pagesInfo.add(p2);
+        // pagesInfo.add(p3);
+        // pagesInfo.add(p1);
+        // pagesInfo.add(p4);
+        // pagesInfo.add(p5);
 
-        Collections.sort(pagesInfo);
+        // Collections.sort(pagesInfo);
 
-        // System.out.println(pagesInfo.indexOf(p4));
-        Table t = new Table("tablename", "id");
+        // // System.out.println(pagesInfo.indexOf(p4));
+        // Table t = new Table("tablename", "id");
+
+        // PageData data = new PageData("da", 1, maxKe, noOfRows)
 
     }
 }
