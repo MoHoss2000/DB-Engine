@@ -38,6 +38,16 @@ public class DBApp implements DBAppInterface {
         }
         maxNoOfRows = Integer.parseInt(prop.getProperty("MaximumRowsCountinPage")); // max row limit
 
+        File directory = new File("src/main/tables");
+        if (!directory.exists()) {
+            directory.mkdir();
+        }
+
+        directory = new File("src/main/resources/data");
+        if (!directory.exists()) {
+            directory.mkdir();
+        }
+        
     }
 
     public void writeInCSV(ArrayList<Object> list) throws IOException {
@@ -252,14 +262,11 @@ public class DBApp implements DBAppInterface {
 
                         Comparable colValue = (Comparable) colNameValue.get(colName);
 
-                        // 100 - 2000
-                        // 511
-
                         if (minValue.compareTo(colValue) > 0 || maxValue.compareTo(colValue) < 0) {
 
                             // System.out.println("min: " + minValue + " " + " max :" + maxValue + " value:
                             // " + colValue + colValue.getClass().getName());
-                            throw new DBAppException("One or more column not within the valid range");
+                            // throw new DBAppException("One or more column not within the valid range");
                         }
                     }
                 }
@@ -290,9 +297,9 @@ public class DBApp implements DBAppInterface {
             String pagePath = pageData.getPagePath();
             Page page = (Page) deserializeFile(pagePath);
 
-            if (page.binarySearchInPage(newRow.getPrimaryKeyValue()) >= 0) {
+            if (page.binarySearchInPage(newRow) >= 0) {
                 // page already has the value
-                throw new DBAppException("Duplicate primary key");
+                // throw new DBAppException("Duplicate primary key");
             }
 
             Vector<PageData> overflowPages = pageData.getOverflowPagesData();
@@ -301,8 +308,8 @@ public class DBApp implements DBAppInterface {
                 for (int i = 0; i < overflowPages.size(); i++) {
                     PageData overflow = pageData.getOverflowPagesData().get(i);
                     page = (Page) deserializeFile(overflow.getPagePath());
-                    if (page.binarySearchInPage(newRow.getPrimaryKeyValue()) >= 0)
-                        throw new DBAppException("Duplicate primary key");
+                    // if (page.binarySearchInPage(newRow) >= 0)
+                    // throw new DBAppException("Duplicate primary key");
                 }
             }
 
@@ -411,7 +418,132 @@ public class DBApp implements DBAppInterface {
     @Override
     public void updateTable(String tableName, String clusteringKeyValue, Hashtable<String, Object> columnNameValue)
             throws DBAppException {
-        // TODO Auto-generated method stub
+
+        String tablePath = "src/main/tables/" + tableName + ".class";
+        Table table = (Table) deserializeFile(tablePath);
+
+        if (!checkName(tableName))
+            throw new DBAppException("Table not found aslan!");
+
+        String row;
+        BufferedReader csvReader;
+        // String primaryKey = null;
+
+        ArrayList<String> tableColumns = new ArrayList<String>();
+        Comparable primaryKeyValue = null;
+
+        try {
+            csvReader = new BufferedReader(new FileReader(filePath));
+            while ((row = csvReader.readLine()) != null) {
+                String[] data = row.split(",");
+                String csvTableName = data[0];
+                String colName = data[1];
+                String colType = data[2];
+                boolean isPrimary = Boolean.parseBoolean(data[3]);
+
+                Comparable minValue = null;
+                Comparable maxValue = null;
+
+                switch (colType) {
+                case "java.lang.Double":
+                    if (isPrimary && csvTableName.equals(tableName))
+                        primaryKeyValue = Double.parseDouble(clusteringKeyValue);
+                    minValue = Double.parseDouble(data[5]);
+                    maxValue = Double.parseDouble(data[6]);
+                    break;
+                case "java.lang.Integer":
+                    if (isPrimary && csvTableName.equals(tableName))
+                        primaryKeyValue = Integer.parseInt(clusteringKeyValue);
+                    minValue = Integer.parseInt(data[5]);
+                    maxValue = Integer.parseInt(data[6]);
+                    break;
+                case "java.util.Date":
+                    if (isPrimary && csvTableName.equals(tableName))
+                        primaryKeyValue = new SimpleDateFormat("yyyy-MM-dd").parse(clusteringKeyValue);
+                    minValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[5]);
+                    maxValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[6]);
+                    break;
+                default:
+                    if (isPrimary && csvTableName.equals(tableName))
+                        primaryKeyValue = clusteringKeyValue;
+                    minValue = data[5];
+                    maxValue = data[6];
+                }
+
+                if (csvTableName.equals(tableName)) { // checking table name
+                    tableColumns.add(colName);
+
+                    if (columnNameValue.containsKey(colName)) {
+                        if (!colType.equals(columnNameValue.get(colName).getClass().getName()))
+                            throw new DBAppException("Invalid data types!");
+
+                        Comparable colValue = (Comparable) columnNameValue.get(colName);
+
+                        if (minValue.compareTo(colValue) > 0 || maxValue.compareTo(colValue) < 0) {
+                            // System.out.println("min: " + minValue + " " + " max :" + maxValue + " value:
+                            // " + colValue + colValue.getClass().getName());
+                            // throw new DBAppException("One or more column not within the valid range");
+                        }
+                    }
+                }
+            }
+
+            csvReader.close();
+        } catch (Exception e1) {
+            e1.printStackTrace();
+        }
+
+        Enumeration<String> enumeration = columnNameValue.keys();
+        // col names that the user inserted
+
+        while (enumeration.hasMoreElements()) {
+            String key = enumeration.nextElement();
+            if (!tableColumns.contains(key))
+                throw new DBAppException("Invalid column name");
+
+        }
+
+        PageData pageData = table.getPageForKey(primaryKeyValue);
+        Page page = (Page) deserializeFile(pageData.getPagePath());
+
+        Hashtable<String, Object> dummyRowHashtable = new Hashtable<>();
+        dummyRowHashtable.put(table.getPrimaryKeyCol(), primaryKeyValue);
+        Row dummyRow = new Row(dummyRowHashtable, table.getPrimaryKeyCol());
+
+        int rowIndex = page.binarySearchInPage(dummyRow);
+
+        Row rowToUpdate = null;
+
+        if (rowIndex >= 0) {
+            // row is found in main page
+            rowToUpdate = page.getRow(rowIndex);
+        } else {
+            Vector<PageData> overflowPages = pageData.getOverflowPagesData();
+
+            for (int i = 0; i < overflowPages.size(); i++) {
+                PageData overflowData = overflowPages.get(i);
+                page = (Page) deserializeFile(overflowData.getPagePath());
+
+                rowIndex = page.binarySearchInPage(dummyRow);
+
+                if (rowIndex >= 0) {
+                    rowToUpdate = page.getRow(rowIndex);
+                    i = overflowPages.size(); // to end loop
+                }
+            }
+        }
+
+        if (rowToUpdate != null) {
+            Enumeration<String> enumeration2 = columnNameValue.keys();
+
+            while (enumeration2.hasMoreElements()) {
+                String colName = enumeration2.nextElement();
+                Comparable requiredColValue = (Comparable) columnNameValue.get(colName);
+                rowToUpdate.changeValueForCol(colName, requiredColValue);
+            }
+        } else {
+            System.out.println("Column to update not found");
+        }
 
     }
 
@@ -499,69 +631,115 @@ public class DBApp implements DBAppInterface {
             PageData pageData = table.getPageForKey(primaryKeyValue);
             Page page = (Page) deserializeFile(pageData.getPagePath());
 
-            int rowIndex = page.binarySearchInPage(primaryKeyValue);
+            Hashtable<String, Object> dummyRowHashtable = new Hashtable<>();
+            dummyRowHashtable.put(tablePrimaryCol, primaryKeyValue);
+            Row dummyRow = new Row(dummyRowHashtable, tablePrimaryCol);
+
+            int rowIndex = page.binarySearchInPage(dummyRow);
             Vector<PageData> overflowPages = pageData.getOverflowPagesData();
 
             if (rowIndex >= 0) {
                 // page has the primary key
+                // benemsa7 mn main page
+                deleteRowFromMainPage(page, pageData, table, columnNameValue, rowIndex);
+            }
 
-                Row rowWithMatchingPrimary = page.getRow(rowIndex);
-
-                if (checkAllColumns(rowWithMatchingPrimary, columnNameValue)) {
-                    page.deleteRow(rowIndex);
-                    pageData.decrementRows();
-
-                    if (pageData.getNoOfRows() == 0) {
-                        if (overflowPages.size() > 0) {
-                            // die with inheritence 
-                            PageData walyEl3ahd = overflowPages.get(0);
-                            overflowPages.remove(walyEl3ahd);
-                            walyEl3ahd.setOverflowPagesData(overflowPages);
-
-                            table.deletePage(pageData);
-                            table.insertPage(walyEl3ahd);
-
-                        } else
-                            table.deletePage(pageData); // die peacfully
-                            
-                        return;
-                    }
-
-                    pageData.setMinKey(page.getMinValue());
-                    pageData.setMaxKey(page.getMaxValue());
-                    return;
+            for (int i = 0; i < overflowPages.size(); i++) {
+                PageData overflow = pageData.getOverflowPagesData().get(i);
+                page = (Page) deserializeFile(overflow.getPagePath());
+                if (page.binarySearchInPage(dummyRow) >= 0) {
+                    // benemsa7 mn overflow
+                    deleteRowFromOverflowPage(page, rowIndex, overflow, overflowPages);
                 }
             }
 
-            if (overflowPages.size() > 0) {
-                for (int i = 0; i < overflowPages.size(); i++) {
-                    PageData overflow = pageData.getOverflowPagesData().get(i);
-                    page = (Page) deserializeFile(overflow.getPagePath());
-                    if (page.binarySearchInPage(primaryKeyValue) >= 0) {
-                        page.deleteRow(rowIndex);
-                        overflow.decrementRows();
-                        if (overflow.getNoOfRows() == 0) {
-                            overflowPages.remove(overflow);
-                            File overFlowFile = new File(overflow.getPagePath());
-                            overFlowFile.delete();
-                            return;
-                        }
-                        overflow.setMinKey(page.getMinValue());
-                        overflow.setMaxKey(page.getMaxValue());
-                        return;
-                    }
-                }
-            }
         } else {
             // linear search
+            Vector<PageData> pagesData = table.getPagesInfo();
+
+            for (int i = 0; i < pagesData.size(); i++) {
+                PageData pageData = pagesData.get(i);
+                Page page = (Page) deserializeFile(pageData.getPagePath());
+
+                for (int j = 0; j < pageData.getNoOfRows(); j++) {
+                    Row tempRow = page.getRow(j);
+                    if (checkAllColumns(tempRow, columnNameValue)) {
+                        // emsa7 el row mn main page
+                        deleteRowFromMainPage(page, pageData, table, columnNameValue, j);
+                    }
+                }
+
+                Vector<PageData> overflowPages = pageData.getOverflowPagesData();
+
+                for (int j = 0; j < overflowPages.size(); j++) {
+                    PageData overflowPageData = overflowPages.get(j);
+                    page = (Page) deserializeFile(overflowPageData.getPagePath());
+
+                    for (int k = 0; k < overflowPageData.getNoOfRows(); k++) {
+                        Row tempRow = page.getRow(j);
+                        if (checkAllColumns(tempRow, columnNameValue)) {
+                            // emsa7 el row mn overflow
+                            deleteRowFromOverflowPage(page, k, overflowPageData, overflowPages);
+                        }
+                    }
+                }
+            }
+
         }
 
+    }
+
+    public void deleteRowFromMainPage(Page page, PageData pageData, Table table, Hashtable columnNameValue,
+            int rowIndex) {
+        Vector<PageData> overflowPages = pageData.getOverflowPagesData();
+        Row rowWithMatchingPrimary = page.getRow(rowIndex);
+
+        if (checkAllColumns(rowWithMatchingPrimary, columnNameValue)) {
+            page.deleteRow(rowIndex);
+            pageData.decrementRows();
+
+            if (pageData.getNoOfRows() == 0) {
+
+                if (overflowPages.size() > 0) {
+                    // die with inheritence
+                    PageData walyEl3ahd = overflowPages.get(0);
+                    overflowPages.remove(walyEl3ahd);
+                    walyEl3ahd.setOverflowPagesData(overflowPages);
+
+                    table.deletePage(pageData);
+                    table.insertPage(walyEl3ahd);
+
+                } else
+                    // die peacfully
+                    table.deletePage(pageData);
+
+                return;
+            }
+
+            pageData.setMinKey(page.getMinValue());
+            pageData.setMaxKey(page.getMaxValue());
+            return;
+        }
+    }
+
+    public void deleteRowFromOverflowPage(Page page, int rowIndex, PageData overflow, Vector<PageData> overflowPages) {
+        page.deleteRow(rowIndex);
+        overflow.decrementRows();
+        if (overflow.getNoOfRows() == 0) {
+            // benemsa7 el overflow
+            overflowPages.remove(overflow);
+            File overFlowFile = new File(overflow.getPagePath());
+            overFlowFile.delete();
+            return;
+        }
+        overflow.setMinKey(page.getMinValue());
+        overflow.setMaxKey(page.getMaxValue());
+        return;
     }
 
     public boolean checkAllColumns(Row row, Hashtable<String, Object> hashtable) {
         Enumeration<String> enumeration = hashtable.keys();
 
-        // boolean isMatching = true;
         while (enumeration.hasMoreElements()) {
             String colName = enumeration.nextElement();
             Comparable requiredColValue = (Comparable) hashtable.get(colName);

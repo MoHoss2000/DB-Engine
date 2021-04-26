@@ -15,7 +15,7 @@ public class Page implements Serializable {
         pageRows = new Vector<Row>();
     }
 
-    public int binarySearchInPage(Comparable key) {
+    public int binarySearchInPage(Row key) {
         return Collections.binarySearch(pageRows, key);
     }
 

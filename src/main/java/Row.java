@@ -11,14 +11,16 @@ public class Row implements Serializable, Comparable<Object> {
     }
 
     public Comparable<Object> getPrimaryKeyValue() {
-        // if(primaryKey == null){
-        // System.out.println("ERROR");
-        // }
         return (Comparable<Object>) rowData.get(primaryKey);
     }
 
     public Comparable getValueForCol(String colName) {
         return (Comparable) rowData.get(colName);
+    }
+
+    // {"name": "menna", "id": 10, "gpa" : 0.7}
+    public void changeValueForCol(String colName, Comparable value){
+        rowData.put(colName, value);
     }
 
     @Override
