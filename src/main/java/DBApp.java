@@ -266,7 +266,7 @@ public class DBApp implements DBAppInterface {
 
                             // System.out.println("min: " + minValue + " " + " max :" + maxValue + " value:
                             // " + colValue + colValue.getClass().getName());
-                            // throw new DBAppException("One or more column not within the valid range");
+                             throw new DBAppException("One or more column not within the valid range");
                         }
                     }
                 }
@@ -299,7 +299,7 @@ public class DBApp implements DBAppInterface {
 
             if (page.binarySearchInPage(newRow) >= 0) {
                 // page already has the value
-                // throw new DBAppException("Duplicate primary key");
+                 throw new DBAppException("Duplicate primary key");
             }
 
             Vector<PageData> overflowPages = pageData.getOverflowPagesData();
@@ -308,8 +308,8 @@ public class DBApp implements DBAppInterface {
                 for (int i = 0; i < overflowPages.size(); i++) {
                     PageData overflow = pageData.getOverflowPagesData().get(i);
                     page = (Page) deserializeFile(overflow.getPagePath());
-                    // if (page.binarySearchInPage(newRow) >= 0)
-                    // throw new DBAppException("Duplicate primary key");
+                     if (page.binarySearchInPage(newRow) >= 0)
+                        throw new DBAppException("Duplicate primary key");
                 }
             }
 
@@ -482,7 +482,7 @@ public class DBApp implements DBAppInterface {
                         if (minValue.compareTo(colValue) > 0 || maxValue.compareTo(colValue) < 0) {
                             // System.out.println("min: " + minValue + " " + " max :" + maxValue + " value:
                             // " + colValue + colValue.getClass().getName());
-                            // throw new DBAppException("One or more column not within the valid range");
+                             throw new DBAppException("One or more column not within the valid range");
                         }
                     }
                 }
@@ -686,6 +686,8 @@ public class DBApp implements DBAppInterface {
             }
 
         }
+
+        table.serializeObject(table, tablePath);
 
     }
 
