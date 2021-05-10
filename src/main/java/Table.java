@@ -6,9 +6,10 @@ import java.util.*;
 public class Table implements Serializable {
     private static final long serialVersionUID = 6529685098267757690L;
 
-    private String tableName;
-    private String primaryKey; // name of primary column
+    private final String tableName;
+    private final String primaryKey; // name of primary column
     private Vector<PageData> pagesInfo;
+
 
     public Table(String tableName, String primaryKey) {
         this.tableName = tableName;
@@ -31,7 +32,7 @@ public class Table implements Serializable {
     public PageData getPageForKey(Comparable primaryKey) {
         int noOfPages = getNoOfPages();
 
-        Comparable minKeys[] = new Comparable[noOfPages];
+        Comparable[] minKeys = new Comparable[noOfPages];
 
         for (int i = 0; i < noOfPages; i++) {
             minKeys[i] = pagesInfo.get(i).getMinKey();
@@ -42,7 +43,7 @@ public class Table implements Serializable {
         return pagesInfo.get(index);
     }
 
-    private int binarySearch(Comparable arr[], int l, int r, Comparable x) {
+    private int binarySearch(Comparable[] arr, int l, int r, Comparable x) {
         if (r >= l) {
             // 0 1
             int mid = l + (r - l) / 2;

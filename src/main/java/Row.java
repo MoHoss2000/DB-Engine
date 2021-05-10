@@ -2,8 +2,8 @@ import java.io.*;
 import java.util.*;
 
 public class Row implements Serializable, Comparable<Object> {
-    private Hashtable<String, Object> rowData;
-    private String primaryKey; // name of primary key col
+    private final Hashtable<String, Object> rowData;
+    private final String primaryKey; // name of primary key col
 
     public Row(Hashtable<String, Object> rowData, String primaryKey) {
         this.rowData = rowData;
@@ -33,6 +33,10 @@ public class Row implements Serializable, Comparable<Object> {
         return c1.compareTo(c2);
 
     }
+
+//    String toString(){
+//
+//    }
 
     public static void main(String[] args) {
         Vector<Row> page = new Vector<Row>();

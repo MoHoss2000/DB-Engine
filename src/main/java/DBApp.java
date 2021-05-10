@@ -9,14 +9,18 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class DBApp implements DBAppInterface {
-    private static String filePath = "src/main/resources/metadata.csv";
-    private static String[] acceptableDataTypes = { "java.lang.Integer", "java.lang.String", "java.lang.Double",
+    private static final String filePath = "src/main/resources/metadata.csv";
+    private static final String[] acceptableDataTypes = { "java.lang.Integer", "java.lang.String", "java.lang.Double",
             "java.util.Date" };
+    private static final String[] operatorsInsideTerm = {">", ">=", "<", "<=", "!=" , "="};
+    private static final String[] operatorsBetweenTerms = {"OR", "AND", "XOR"};
+
     private static int maxNoOfRows;
 
     ArrayList<Table> tablesInfo;
@@ -43,11 +47,6 @@ public class DBApp implements DBAppInterface {
             directory.mkdir();
         }
 
-        directory = new File("src/main/resources/data");
-        if (!directory.exists()) {
-            directory.mkdir();
-        }
-        
     }
 
     public void writeInCSV(ArrayList<Object> list) throws IOException {
@@ -214,39 +213,42 @@ public class DBApp implements DBAppInterface {
         String primaryKey = null;
 
         ArrayList<String> tableColumns = new ArrayList<String>();
+
         try {
             csvReader = new BufferedReader(new FileReader(filePath));
+            
             while ((row = csvReader.readLine()) != null) {
+//                System.out.println(row);
                 String[] data = row.split(",");
                 String csvTableName = data[0];
                 String colName = data[1];
                 String colType = data[2];
                 boolean isPrimary = Boolean.parseBoolean(data[3]);
+//                System.out.println("col: " + colName);
 
                 Comparable minValue = null;
                 Comparable maxValue = null;
 
                 switch (colType) {
-                case "java.lang.Double":
-                    minValue = Double.parseDouble(data[5]);
-                    maxValue = Double.parseDouble(data[6]);
-                    break;
-                case "java.lang.Integer":
-                    minValue = Integer.parseInt(data[5]);
-                    maxValue = Integer.parseInt(data[6]);
-                    break;
-                case "java.util.Date":
-                    minValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[5]);
-                    maxValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[6]);
-                    break;
-                default:
-                    minValue = data[5];
-                    maxValue = data[6];
+                    case "java.lang.Double":
+                        minValue = Double.parseDouble(data[5]);
+                        maxValue = Double.parseDouble(data[6]);
+                        break;
+                    case "java.lang.Integer":
+                        minValue = Integer.parseInt(data[5]);
+                        maxValue = Integer.parseInt(data[6]);
+                        break;
+                    case "java.util.Date":
+                        minValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[5]);
+                        maxValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[6]);
+                        break;
+                    default:
+                        minValue = data[5];
+                        maxValue = data[6];
                 }
 
                 if (csvTableName.equals(tableName)) { // checking table name
                     tableColumns.add(colName);
-
                     if (isPrimary)
                         primaryKey = colName;
 
@@ -263,10 +265,7 @@ public class DBApp implements DBAppInterface {
                         Comparable colValue = (Comparable) colNameValue.get(colName);
 
                         if (minValue.compareTo(colValue) > 0 || maxValue.compareTo(colValue) < 0) {
-
-                            // System.out.println("min: " + minValue + " " + " max :" + maxValue + " value:
-                            // " + colValue + colValue.getClass().getName());
-                             throw new DBAppException("One or more column not within the valid range");
+                            throw new DBAppException("One or more column not within the valid range");
                         }
                     }
                 }
@@ -278,13 +277,11 @@ public class DBApp implements DBAppInterface {
         }
 
         Enumeration<String> enumeration = colNameValue.keys();
-        // col names that the user inserted
 
         while (enumeration.hasMoreElements()) {
             String key = enumeration.nextElement();
             if (!tableColumns.contains(key))
                 throw new DBAppException("Invalid column name");
-
         }
 
         Row newRow = new Row(colNameValue, primaryKey);
@@ -299,7 +296,7 @@ public class DBApp implements DBAppInterface {
 
             if (page.binarySearchInPage(newRow) >= 0) {
                 // page already has the value
-                 throw new DBAppException("Duplicate primary key");
+                throw new DBAppException("Duplicate primary key");
             }
 
             Vector<PageData> overflowPages = pageData.getOverflowPagesData();
@@ -308,7 +305,7 @@ public class DBApp implements DBAppInterface {
                 for (int i = 0; i < overflowPages.size(); i++) {
                     PageData overflow = pageData.getOverflowPagesData().get(i);
                     page = (Page) deserializeFile(overflow.getPagePath());
-                     if (page.binarySearchInPage(newRow) >= 0)
+                    if (page.binarySearchInPage(newRow) >= 0)
                         throw new DBAppException("Duplicate primary key");
                 }
             }
@@ -330,7 +327,10 @@ public class DBApp implements DBAppInterface {
             Vector<PageData> pagesInfo = table.getPagesInfo();
             int indexOfNextPageData = pagesInfo.indexOf(pageData) + 1;
 
-            if (indexOfNextPageData == pagesInfo.size()) { // i need to create a new page
+
+            // i want to insert into the last page and it is full
+            // i need to create a new page at the end
+            if (indexOfNextPageData == pagesInfo.size()) {
                 Comparable maxInOldPage = pageData.getMaxKey();
                 if (newRow.getPrimaryKeyValue().compareTo(maxInOldPage) < 0) {
                     // key i want to insert is less than the max key in the old page
@@ -399,7 +399,9 @@ public class DBApp implements DBAppInterface {
                 PageData currentOverflow = overflowPagesData.get(i);
                 if (currentOverflow.getNoOfRows() < maxNoOfRows) {
                     Page loadedPage = (Page) deserializeFile(currentOverflow.getPagePath()); // old page
+
                     loadedPage.addRow(newRow);
+
 
                     currentOverflow.setMaxKey(loadedPage.getMaxValue());
                     currentOverflow.setMinKey(loadedPage.getMinValue());
@@ -445,29 +447,29 @@ public class DBApp implements DBAppInterface {
                 Comparable maxValue = null;
 
                 switch (colType) {
-                case "java.lang.Double":
-                    if (isPrimary && csvTableName.equals(tableName))
-                        primaryKeyValue = Double.parseDouble(clusteringKeyValue);
-                    minValue = Double.parseDouble(data[5]);
-                    maxValue = Double.parseDouble(data[6]);
-                    break;
-                case "java.lang.Integer":
-                    if (isPrimary && csvTableName.equals(tableName))
-                        primaryKeyValue = Integer.parseInt(clusteringKeyValue);
-                    minValue = Integer.parseInt(data[5]);
-                    maxValue = Integer.parseInt(data[6]);
-                    break;
-                case "java.util.Date":
-                    if (isPrimary && csvTableName.equals(tableName))
-                        primaryKeyValue = new SimpleDateFormat("yyyy-MM-dd").parse(clusteringKeyValue);
-                    minValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[5]);
-                    maxValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[6]);
-                    break;
-                default:
-                    if (isPrimary && csvTableName.equals(tableName))
-                        primaryKeyValue = clusteringKeyValue;
-                    minValue = data[5];
-                    maxValue = data[6];
+                    case "java.lang.Double":
+                        if (isPrimary && csvTableName.equals(tableName))
+                            primaryKeyValue = Double.parseDouble(clusteringKeyValue);
+                        minValue = Double.parseDouble(data[5]);
+                        maxValue = Double.parseDouble(data[6]);
+                        break;
+                    case "java.lang.Integer":
+                        if (isPrimary && csvTableName.equals(tableName))
+                            primaryKeyValue = Integer.parseInt(clusteringKeyValue);
+                        minValue = Integer.parseInt(data[5]);
+                        maxValue = Integer.parseInt(data[6]);
+                        break;
+                    case "java.util.Date":
+                        if (isPrimary && csvTableName.equals(tableName))
+                            primaryKeyValue = new SimpleDateFormat("yyyy-MM-dd").parse(clusteringKeyValue);
+                        minValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[5]);
+                        maxValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[6]);
+                        break;
+                    default:
+                        if (isPrimary && csvTableName.equals(tableName))
+                            primaryKeyValue = clusteringKeyValue;
+                        minValue = data[5];
+                        maxValue = data[6];
                 }
 
                 if (csvTableName.equals(tableName)) { // checking table name
@@ -482,7 +484,7 @@ public class DBApp implements DBAppInterface {
                         if (minValue.compareTo(colValue) > 0 || maxValue.compareTo(colValue) < 0) {
                             // System.out.println("min: " + minValue + " " + " max :" + maxValue + " value:
                             // " + colValue + colValue.getClass().getName());
-                             throw new DBAppException("One or more column not within the valid range");
+                            throw new DBAppException("One or more column not within the valid range");
                         }
                     }
                 }
@@ -574,21 +576,21 @@ public class DBApp implements DBAppInterface {
                 Comparable maxValue = null;
 
                 switch (colType) {
-                case "java.lang.Double":
-                    minValue = Double.parseDouble(data[5]);
-                    maxValue = Double.parseDouble(data[6]);
-                    break;
-                case "java.lang.Integer":
-                    minValue = Integer.parseInt(data[5]);
-                    maxValue = Integer.parseInt(data[6]);
-                    break;
-                case "java.util.Date":
-                    minValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[5]);
-                    maxValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[6]);
-                    break;
-                default:
-                    minValue = data[5];
-                    maxValue = data[6];
+                    case "java.lang.Double":
+                        minValue = Double.parseDouble(data[5]);
+                        maxValue = Double.parseDouble(data[6]);
+                        break;
+                    case "java.lang.Integer":
+                        minValue = Integer.parseInt(data[5]);
+                        maxValue = Integer.parseInt(data[6]);
+                        break;
+                    case "java.util.Date":
+                        minValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[5]);
+                        maxValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[6]);
+                        break;
+                    default:
+                        minValue = data[5];
+                        maxValue = data[6];
                 }
 
                 if (csvTableName.equals(tableName)) { // checking table name
@@ -755,8 +757,31 @@ public class DBApp implements DBAppInterface {
 
     @Override
     public Iterator selectFromTable(SQLTerm[] sqlTerms, String[] arrayOperators) throws DBAppException {
-        // TODO Auto-generated method stub
-        return null;
+        if(sqlTerms.length != arrayOperators.length + 1)
+            throw new DBAppException("Invalid Data Entry");
+
+        ArrayList resultSet= new ArrayList();
+
+        String tableName = sqlTerms[0]._strTableName;
+        if(!checkName(tableName))
+            throw new DBAppException("Table name not found aslan!");
+
+        String tablePath = "src/main/tables/" + tableName + ".class";
+        Table table = (Table) deserializeFile(tablePath);
+
+        for(SQLTerm sqlTerm: sqlTerms){
+            if(!sqlTerm._strTableName.equals(tableName))
+                throw new DBAppException("Engine doesn't support joins!");
+
+            if(sqlTerm._strColumnName.equals(table.getPrimaryKeyCol())){
+                // need to do binary search on primary key
+
+            }
+
+
+        }
+
+        return resultSet.iterator();
     }
 
     public static void main(String[] args) throws IOException {
@@ -764,42 +789,60 @@ public class DBApp implements DBAppInterface {
         dbApp.init();
         String tableName = "students";
 
-        // Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
-        // htblColNameType.put("id", "java.lang.String");
-        // htblColNameType.put("first_name", "java.lang.String");
-        // htblColNameType.put("last_name", "java.lang.String");
-        // htblColNameType.put("dob", "java.util.Date");
-        // htblColNameType.put("gpa", "java.lang.Double");
-
-        // Hashtable<String, String> minValues = new Hashtable<>();
-        // minValues.put("id", "43-0000");
-        // minValues.put("first_name", "AAAAAA");
-        // minValues.put("last_name", "AAAAAA");
-        // minValues.put("dob", "1990-01-01");
-        // minValues.put("gpa", "0.7");
-
-        // Hashtable<String, String> maxValues = new Hashtable<>();
-        // maxValues.put("id", "99-9999");
-        // maxValues.put("first_name", "zzzzzz");
-        // maxValues.put("last_name", "zzzzzz");
-        // maxValues.put("dob", "2000-12-31");
-        // maxValues.put("gpa", "5.0");
+//        Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
+//        htblColNameType.put("id", "java.lang.String");
+//        htblColNameType.put("first_name", "java.lang.String");
+//        // htblColNameType.put("last_name", "java.lang.String");
+//        // htblColNameType.put("dob", "java.util.Date");
+//        // htblColNameType.put("gpa", "java.lang.Double");
+//
+//        Hashtable<String, String> minValues = new Hashtable<>();
+//        minValues.put("id", "43-0000");
+//        minValues.put("first_name", "AAAAAA");
+//        // minValues.put("last_name", "AAAAAA");
+//        // minValues.put("dob", "1990-01-01");
+//        // minValues.put("gpa", "0.7");
+//
+//        Hashtable<String, String> maxValues = new Hashtable<>();
+//        maxValues.put("id", "99-9999");
+//        maxValues.put("first_name", "zzzzzz");
+//        // maxValues.put("last_name", "zzzzzz");
+//        // maxValues.put("dob", "2000-12-31");
+//        // maxValues.put("gpa", "5.0");
+//
+//        // try {
+//        // dbApp.createTable(tableName, "id", htblColNameType, minValues, maxValues);
+//        // } catch (DBAppException e) {
+//        // // TODO Auto-generated catch block
+//        // e.printStackTrace();
+//        // }
+//
+//        Hashtable<String, Object> colNameValue = new Hashtable<String, Object>();
+//        colNameValue.put("id", "46-9261");
+//        colNameValue.put("first_name", "dadad");
+//
+//        try {
+//            dbApp.insertIntoTable("students", colNameValue);
+//        } catch (DBAppException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        }
 
         // try {
-        // dbApp.createTable(tableName, "id", htblColNameType, minValues, maxValues);
+        // dbApp.deleteFromTable(tableName, colNameValue);
         // } catch (DBAppException e) {
         // // TODO Auto-generated catch block
         // e.printStackTrace();
         // }
-
-        Hashtable<String, Object> colNameValue = new Hashtable<String, Object>();
-        colNameValue.put("id", 11);
-        colNameValue.put("gpa", 0.9);
+        SQLTerm[] sqlTerms = new SQLTerm[1];
+        String[]strarrOperators = new String[1];
 
         try {
-            dbApp.insertIntoTable("students", colNameValue);
+           Iterator iterator =  dbApp.selectFromTable(sqlTerms, strarrOperators);
+            System.out.println(iterator.next());
+            System.out.println(iterator.next());
+
         } catch (DBAppException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }

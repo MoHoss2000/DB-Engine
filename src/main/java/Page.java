@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -9,7 +10,7 @@ import java.util.*;
 
 public class Page implements Serializable {
     private static final long serialVersionUID = 2529685098267757690L;
-    private Vector<Row> pageRows;
+    private final Vector<Row> pageRows;
 
     public Page() {
         pageRows = new Vector<Row>();
@@ -78,35 +79,12 @@ public class Page implements Serializable {
     }
 
     public static void main(String[] args) {
-        // Vector<Integer> vector = new Vector<Integer>();
-        // vector.add(1);
-        // vector.add(2);
-        // vector.add(3);
-
-        // vector.remove(Integer.valueOf(2));
-
-        // System.out.println(vector);
-
-        // 100 - 2000
-        // 511
-        Comparable minValue = "100";
-        Comparable maxValue = "2000";
-        Comparable colValue = "511";
-
-        if (minValue.compareTo(colValue) > 0 || maxValue.compareTo(colValue) < 0) {
-
-            System.out.println("error");
-            // throw new DBAppException("One or more column not within the valid range");
-        }
-
-        try {
-            Date d = new SimpleDateFormat("yyyy-MM-dd").parse("2000-04-07");
-            System.out.println(d);
-
-        } catch (ParseException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-
+        String min = "AAAAA";
+        String input= "b";
+       
+        System.out.println(input.compareTo(min));
+        // post num means input > min
+        // negative num means input < min
+        // zero means input = min
     }
 }
