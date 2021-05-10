@@ -299,21 +299,8 @@ public class DBApp implements DBAppInterface {
                 throw new DBAppException("Duplicate primary key");
             }
 
-            Vector<PageData> overflowPages = pageData.getOverflowPagesData();
-
-            if (overflowPages.size() > 0) {
-                for (int i = 0; i < overflowPages.size(); i++) {
-                    PageData overflow = pageData.getOverflowPagesData().get(i);
-                    page = (Page) deserializeFile(overflow.getPagePath());
-                    if (page.binarySearchInPage(newRow) >= 0)
-                        throw new DBAppException("Duplicate primary key");
-                }
-            }
-
             // the page i want to insert in is not full
             if (pageData.getNoOfRows() < maxNoOfRows) {
-                page = (Page) deserializeFile(pagePath);
-
                 page.addRow(newRow);
                 pageData.incrementRows();
                 pageData.setMinKey(page.getMinValue());
@@ -327,7 +314,6 @@ public class DBApp implements DBAppInterface {
             Vector<PageData> pagesInfo = table.getPagesInfo();
             int indexOfNextPageData = pagesInfo.indexOf(pageData) + 1;
 
-
             // i want to insert into the last page and it is full
             // i need to create a new page at the end
             if (indexOfNextPageData == pagesInfo.size()) {
@@ -335,17 +321,17 @@ public class DBApp implements DBAppInterface {
                 if (newRow.getPrimaryKeyValue().compareTo(maxInOldPage) < 0) {
                     // key i want to insert is less than the max key in the old page
                     // i need to shift the max key to the new page
-                    Page oldPage = (Page) deserializeFile(pageData.getPagePath());
-                    Row lastRow = oldPage.removeLastRow();
 
-                    oldPage.addRow(newRow);
+                    Row lastRow = page.removeLastRow(); // old max
 
-                    pageData.setMaxKey(oldPage.getMaxValue());
-                    pageData.setMinKey(oldPage.getMinValue());
+                    page.addRow(newRow);
+
+                    pageData.setMaxKey(page.getMaxValue());
+                    pageData.setMinKey(page.getMinValue());
 
                     table.addPage(lastRow);
 
-                    serializeObject(oldPage, pageData.getPagePath());
+                    serializeObject(page, pageData.getPagePath());
                 } else {
                     table.addPage(newRow);
                 }
@@ -359,61 +345,58 @@ public class DBApp implements DBAppInterface {
             if (nextPageData.getNoOfRows() < maxNoOfRows) {
                 Comparable maxInOldPage = pageData.getMaxKey();
                 if (newRow.getPrimaryKeyValue().compareTo(maxInOldPage) < 0) {
-                    Page loadedPage = (Page) deserializeFile(pageData.getPagePath()); // old page
-                    Row lastRow = loadedPage.removeLastRow();
+                    Row lastRow = page.removeLastRow();
 
-                    loadedPage.addRow(newRow);
+                    page.addRow(newRow);
 
-                    pageData.setMaxKey(loadedPage.getMaxValue());
-                    pageData.setMinKey(loadedPage.getMinValue());
-                    serializeObject(loadedPage, pageData.getPagePath());
+                    pageData.setMaxKey(page.getMaxValue());
+                    pageData.setMinKey(page.getMinValue());
+                    serializeObject(page, pageData.getPagePath());
 
-                    loadedPage = (Page) deserializeFile(nextPageData.getPagePath()); // next page
+                    page = (Page) deserializeFile(nextPageData.getPagePath()); // next page
 
-                    loadedPage.addRow(lastRow);
-                    nextPageData.setMaxKey(loadedPage.getMaxValue());
-                    nextPageData.setMinKey(loadedPage.getMinValue());
+                    page.addRow(lastRow);
+                    nextPageData.setMaxKey(page.getMaxValue());
+                    nextPageData.setMinKey(page.getMinValue());
                     nextPageData.incrementRows();
 
-                    serializeObject(loadedPage, nextPageData.getPagePath());
+                    serializeObject(page, nextPageData.getPagePath());
                 } else {
-                    Page loadedPage = (Page) deserializeFile(nextPageData.getPagePath()); // old page
-                    loadedPage.addRow(newRow);
+                    page = (Page) deserializeFile(nextPageData.getPagePath()); // next page
+                    page.addRow(newRow);
 
-                    nextPageData.setMaxKey(loadedPage.getMaxValue());
-                    nextPageData.setMinKey(loadedPage.getMinValue());
+                    nextPageData.setMaxKey(page.getMaxValue());
+                    nextPageData.setMinKey(page.getMinValue());
                     nextPageData.incrementRows();
-                    serializeObject(loadedPage, nextPageData.getPagePath());
+                    serializeObject(page, nextPageData.getPagePath());
                 }
 
                 serializeObject(table, tablePath);
                 return;
             }
 
-            // we need to create overflow page linked to the original page i want to insert
-            // in
+            // we will create a new page after the page we need to insert in
+            Comparable maxInOldPage = pageData.getMaxKey();
+            if (newRow.getPrimaryKeyValue().compareTo(maxInOldPage) < 0) {
+                // key i want to insert is less than the max key in the old page
+                // i need to shift the max key to the new page
 
-            Vector<PageData> overflowPagesData = pageData.getOverflowPagesData();
+                Row lastRow = page.removeLastRow(); // old max
 
-            for (int i = 0; i < overflowPagesData.size(); i++) {
-                PageData currentOverflow = overflowPagesData.get(i);
-                if (currentOverflow.getNoOfRows() < maxNoOfRows) {
-                    Page loadedPage = (Page) deserializeFile(currentOverflow.getPagePath()); // old page
+                page.addRow(newRow);
 
-                    loadedPage.addRow(newRow);
+                pageData.setMaxKey(page.getMaxValue());
+                pageData.setMinKey(page.getMinValue());
 
+                table.addPage(lastRow);
 
-                    currentOverflow.setMaxKey(loadedPage.getMaxValue());
-                    currentOverflow.setMinKey(loadedPage.getMinValue());
-
-                    serializeObject(loadedPage, currentOverflow.getPagePath());
-                    serializeObject(table, tablePath);
-                    return;
-                }
+                serializeObject(page, pageData.getPagePath());
+            } else {
+                table.addPage(newRow);
             }
 
-            pageData.addNewOverflowPage(newRow); // creating new overflow
             serializeObject(table, tablePath);
+            return;
         }
     }
 
@@ -429,7 +412,6 @@ public class DBApp implements DBAppInterface {
 
         String row;
         BufferedReader csvReader;
-        // String primaryKey = null;
 
         ArrayList<String> tableColumns = new ArrayList<String>();
         Comparable primaryKeyValue = null;
@@ -519,20 +501,6 @@ public class DBApp implements DBAppInterface {
         if (rowIndex >= 0) {
             // row is found in main page
             rowToUpdate = page.getRow(rowIndex);
-        } else {
-            Vector<PageData> overflowPages = pageData.getOverflowPagesData();
-
-            for (int i = 0; i < overflowPages.size(); i++) {
-                PageData overflowData = overflowPages.get(i);
-                page = (Page) deserializeFile(overflowData.getPagePath());
-
-                rowIndex = page.binarySearchInPage(dummyRow);
-
-                if (rowIndex >= 0) {
-                    rowToUpdate = page.getRow(rowIndex);
-                    i = overflowPages.size(); // to end loop
-                }
-            }
         }
 
         if (rowToUpdate != null) {
@@ -638,21 +606,10 @@ public class DBApp implements DBAppInterface {
             Row dummyRow = new Row(dummyRowHashtable, tablePrimaryCol);
 
             int rowIndex = page.binarySearchInPage(dummyRow);
-            Vector<PageData> overflowPages = pageData.getOverflowPagesData();
 
             if (rowIndex >= 0) {
                 // page has the primary key
-                // benemsa7 mn main page
                 deleteRowFromMainPage(page, pageData, table, columnNameValue, rowIndex);
-            }
-
-            for (int i = 0; i < overflowPages.size(); i++) {
-                PageData overflow = pageData.getOverflowPagesData().get(i);
-                page = (Page) deserializeFile(overflow.getPagePath());
-                if (page.binarySearchInPage(dummyRow) >= 0) {
-                    // benemsa7 mn overflow
-                    deleteRowFromOverflowPage(page, rowIndex, overflow, overflowPages);
-                }
             }
 
         } else {
@@ -666,36 +623,17 @@ public class DBApp implements DBAppInterface {
                 for (int j = 0; j < pageData.getNoOfRows(); j++) {
                     Row tempRow = page.getRow(j);
                     if (checkAllColumns(tempRow, columnNameValue)) {
-                        // emsa7 el row mn main page
                         deleteRowFromMainPage(page, pageData, table, columnNameValue, j);
-                    }
-                }
-
-                Vector<PageData> overflowPages = pageData.getOverflowPagesData();
-
-                for (int j = 0; j < overflowPages.size(); j++) {
-                    PageData overflowPageData = overflowPages.get(j);
-                    page = (Page) deserializeFile(overflowPageData.getPagePath());
-
-                    for (int k = 0; k < overflowPageData.getNoOfRows(); k++) {
-                        Row tempRow = page.getRow(j);
-                        if (checkAllColumns(tempRow, columnNameValue)) {
-                            // emsa7 el row mn overflow
-                            deleteRowFromOverflowPage(page, k, overflowPageData, overflowPages);
-                        }
                     }
                 }
             }
 
         }
-
         table.serializeObject(table, tablePath);
-
     }
 
     public void deleteRowFromMainPage(Page page, PageData pageData, Table table, Hashtable columnNameValue,
             int rowIndex) {
-        Vector<PageData> overflowPages = pageData.getOverflowPagesData();
         Row rowWithMatchingPrimary = page.getRow(rowIndex);
 
         if (checkAllColumns(rowWithMatchingPrimary, columnNameValue)) {
@@ -703,42 +641,16 @@ public class DBApp implements DBAppInterface {
             pageData.decrementRows();
 
             if (pageData.getNoOfRows() == 0) {
-
-                if (overflowPages.size() > 0) {
-                    // die with inheritence
-                    PageData walyEl3ahd = overflowPages.get(0);
-                    overflowPages.remove(walyEl3ahd);
-                    walyEl3ahd.setOverflowPagesData(overflowPages);
-
                     table.deletePage(pageData);
-                    table.insertPage(walyEl3ahd);
-
-                } else
-                    // die peacfully
-                    table.deletePage(pageData);
-
                 return;
             }
 
             pageData.setMinKey(page.getMinValue());
             pageData.setMaxKey(page.getMaxValue());
-            return;
-        }
-    }
 
-    public void deleteRowFromOverflowPage(Page page, int rowIndex, PageData overflow, Vector<PageData> overflowPages) {
-        page.deleteRow(rowIndex);
-        overflow.decrementRows();
-        if (overflow.getNoOfRows() == 0) {
-            // benemsa7 el overflow
-            overflowPages.remove(overflow);
-            File overFlowFile = new File(overflow.getPagePath());
-            overFlowFile.delete();
+            serializeObject(page, pageData.getPagePath());
             return;
         }
-        overflow.setMinKey(page.getMinValue());
-        overflow.setMaxKey(page.getMaxValue());
-        return;
     }
 
     public boolean checkAllColumns(Row row, Hashtable<String, Object> hashtable) {
@@ -775,7 +687,7 @@ public class DBApp implements DBAppInterface {
 
             if(sqlTerm._strColumnName.equals(table.getPrimaryKeyCol())){
                 // need to do binary search on primary key
-
+                PageData pageData = table.getPageForKey(sqlTerm.);
             }
 
 
