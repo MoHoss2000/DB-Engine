@@ -1,24 +1,12 @@
-import java.io.BufferedReader;
 import java.io.*;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.lang.reflect.Array;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class DBApp implements DBAppInterface {
     private static final String filePath = "src/main/resources/metadata.csv";
-    private static final String[] acceptableDataTypes = { "java.lang.Integer", "java.lang.String", "java.lang.Double",
-            "java.util.Date" };
-    private static final String[] operatorsInsideTerm = {">", ">=", "<", "<=", "!=" , "="};
+    private static final String[] acceptableDataTypes = {"java.lang.Integer", "java.lang.String", "java.lang.Double",
+            "java.util.Date"};
+    private static final String[] operatorsInsideTerm = {">", ">=", "<", "<=", "!=", "="};
     private static final String[] operatorsBetweenTerms = {"OR", "AND", "XOR"};
 
     private static int maxNoOfRows;
@@ -100,7 +88,7 @@ public class DBApp implements DBAppInterface {
 
     @Override
     public void createTable(String tableName, String clusteringKey, Hashtable<String, String> colNameType,
-            Hashtable<String, String> colNameMin, Hashtable<String, String> colNameMax) throws DBAppException {
+                            Hashtable<String, String> colNameMin, Hashtable<String, String> colNameMax) throws DBAppException {
 
         // Table Name, Column Name, Column Type, ClusteringKey, Indexed, min, max
         Iterator<String> iterator = colNameType.keys().asIterator();
@@ -168,6 +156,11 @@ public class DBApp implements DBAppInterface {
         serializeObject(newTable, "src/main/tables/" + tableName + ".class");
     }
 
+    @Override
+    public void createIndex(String tableName, String[] columnNames) throws DBAppException {
+
+    }
+
     public void serializeObject(Serializable object, String path) {
         try {
             FileOutputStream fileOut = new FileOutputStream(path);
@@ -216,7 +209,7 @@ public class DBApp implements DBAppInterface {
 
         try {
             csvReader = new BufferedReader(new FileReader(filePath));
-            
+
             while ((row = csvReader.readLine()) != null) {
 //                System.out.println(row);
                 String[] data = row.split(",");
@@ -633,7 +626,7 @@ public class DBApp implements DBAppInterface {
     }
 
     public void deleteRowFromMainPage(Page page, PageData pageData, Table table, Hashtable columnNameValue,
-            int rowIndex) {
+                                      int rowIndex) {
         Row rowWithMatchingPrimary = page.getRow(rowIndex);
 
         if (checkAllColumns(rowWithMatchingPrimary, columnNameValue)) {
@@ -641,7 +634,7 @@ public class DBApp implements DBAppInterface {
             pageData.decrementRows();
 
             if (pageData.getNoOfRows() == 0) {
-                    table.deletePage(pageData);
+                table.deletePage(pageData);
                 return;
             }
 
@@ -669,25 +662,45 @@ public class DBApp implements DBAppInterface {
 
     @Override
     public Iterator selectFromTable(SQLTerm[] sqlTerms, String[] arrayOperators) throws DBAppException {
-        if(sqlTerms.length != arrayOperators.length + 1)
+        if (sqlTerms.length != arrayOperators.length + 1)
             throw new DBAppException("Invalid Data Entry");
 
-        ArrayList resultSet= new ArrayList();
+        ArrayList resultSet = new ArrayList();
+
+        List<String> operatorsInside = Arrays.asList(operatorsInsideTerm);
+        List<String> operatorsBetween = Arrays.asList(operatorsBetweenTerms);
 
         String tableName = sqlTerms[0]._strTableName;
-        if(!checkName(tableName))
+        if (!checkName(tableName))
             throw new DBAppException("Table name not found aslan!");
 
         String tablePath = "src/main/tables/" + tableName + ".class";
         Table table = (Table) deserializeFile(tablePath);
 
-        for(SQLTerm sqlTerm: sqlTerms){
-            if(!sqlTerm._strTableName.equals(tableName))
+        for (SQLTerm sqlTerm : sqlTerms) {
+            if (!sqlTerm._strTableName.equals(tableName))
                 throw new DBAppException("Engine doesn't support joins!");
 
-            if(sqlTerm._strColumnName.equals(table.getPrimaryKeyCol())){
+            if (!operatorsInside.contains(sqlTerm._strOperator))
+                throw new DBAppException("Invalid operator");
+
+            if (sqlTerm._strColumnName.equals(table.getPrimaryKeyCol())) {
                 // need to do binary search on primary key
-                PageData pageData = table.getPageForKey(sqlTerm.);
+                try {
+                    Comparable primaryKeyVal = (Comparable) sqlTerm._objValue;
+                    PageData pageData = table.getPageForKey(primaryKeyVal);
+                    Page page = (Page) deserializeFile(pageData.getPagePath());
+
+                    Hashtable<String, Object> dummyRowHashtable = new Hashtable<>();
+                    dummyRowHashtable.put(table.getPrimaryKeyCol(), primaryKeyVal);
+                    Row dummyRow = new Row(dummyRowHashtable, table.getPrimaryKeyCol());
+
+                    int rowIndex = page.binarySearchInPage(dummyRow);
+                    Row row = page.getRow(rowIndex);
+
+                } catch (Exception e) {
+                    throw new DBAppException("Invalid data types");
+                }
             }
 
 
@@ -747,10 +760,10 @@ public class DBApp implements DBAppInterface {
         // e.printStackTrace();
         // }
         SQLTerm[] sqlTerms = new SQLTerm[1];
-        String[]strarrOperators = new String[1];
+        String[] strarrOperators = new String[1];
 
         try {
-           Iterator iterator =  dbApp.selectFromTable(sqlTerms, strarrOperators);
+            Iterator iterator = dbApp.selectFromTable(sqlTerms, strarrOperators);
             System.out.println(iterator.next());
             System.out.println(iterator.next());
 
