@@ -81,6 +81,11 @@ public class PageData implements Serializable, Comparable {
  
     }
 
+    @Override
+    public String toString(){
+        return minKey + " " + maxKey + " " + noOfRows;
+    }
+
     public void serializeObject(Serializable object, String path) {
         try {
             FileOutputStream fileOut = new FileOutputStream(path);
@@ -131,8 +136,6 @@ public class PageData implements Serializable, Comparable {
         t.insertPage(p1);
         t.insertPage(p2);
 
-System.out.print(    t.getPageForKey(12).getMinKey());
-        // PageData data = new PageData("da", 1, maxKe, noOfRows)
 
     }
 }

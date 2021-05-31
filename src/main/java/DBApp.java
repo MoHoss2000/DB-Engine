@@ -156,9 +156,112 @@ public class DBApp implements DBAppInterface {
         serializeObject(newTable, "src/main/tables/" + tableName + ".class");
     }
 
+//    public static int getIndexInArray(String colName, String[] colNames) {
+//        for (int i = 0; i < colNames.length; i++) {
+//            if (colNames[i].equals(colName)) {
+//                return i;
+//            }
+//        }
+//
+//        return -1;
+//    }
+
     @Override
     public void createIndex(String tableName, String[] columnNames) throws DBAppException {
+        String tablePath = "src/main/tables/" + tableName + ".class";
+        Table table = (Table) deserializeFile(tablePath);
+        List<String> colNamesList = Arrays.asList(columnNames);
 
+        if (!checkName(tableName))
+            throw new DBAppException("Table not found aslan!");
+
+        String row;
+        BufferedReader csvReader;
+
+        ArrayList<String> tableColumns = new ArrayList<String>();
+        Comparable[] minValues = new Comparable[columnNames.length];
+        Comparable[] maxValues = new Comparable[columnNames.length];
+
+        try {
+            csvReader = new BufferedReader(new FileReader(filePath));
+
+            while ((row = csvReader.readLine()) != null) {
+                String[] data = row.split(",");
+                String csvTableName = data[0];
+                String colName = data[1];
+                String colType = data[2];
+
+                Comparable minValue = null;
+                Comparable maxValue = null;
+
+                switch (colType) {
+                    case "java.lang.Double":
+                        minValue = Double.parseDouble(data[5]);
+                        maxValue = Double.parseDouble(data[6]);
+                        break;
+                    case "java.lang.Integer":
+                        minValue = Integer.parseInt(data[5]);
+                        maxValue = Integer.parseInt(data[6]);
+                        break;
+                    case "java.util.Date":
+                        minValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[5]);
+                        maxValue = new SimpleDateFormat("yyyy-MM-dd").parse(data[6]);
+                        break;
+                    default:
+                        minValue = data[5];
+                        maxValue = data[6];
+                }
+
+                if (csvTableName.equals(tableName)) { // checking table name
+                    tableColumns.add(colName);
+                    int index = colNamesList.indexOf(colName);
+
+                    if (index != -1) {
+                        minValues[index] = minValue;
+                        maxValues[index] = maxValue;
+                    }
+                }
+            }
+
+
+            csvReader.close();
+        } catch (Exception e1) {
+            e1.printStackTrace();
+        }
+
+        for (String colName : columnNames
+        ) {
+            if (!tableColumns.contains(colName))
+                throw new DBAppException("Invalid column name");
+        }
+
+        Vector<Index> indices = table.getIndices();
+
+        // checking if index with same columns already exists
+        for (Index index : indices
+        ) {
+            boolean flag = true;
+            String[] indexColNames = index.getColNames();
+            if (indexColNames.length == columnNames.length) {
+                for (int i = 0; i < indexColNames.length; i++) {
+                    if (!indexColNames[i].equals(columnNames[i])) {
+                        flag = false;
+                        break;
+                    }
+                }
+            } else {
+                flag = false;
+            }
+
+            if (flag)
+                throw new DBAppException("Index with these column names already exists");
+        }
+    }
+
+    public Comparable[] getDivisions(Comparable min, Comparable max) {
+
+
+        return null;
     }
 
     public void serializeObject(Serializable object, String path) {
@@ -712,63 +815,14 @@ public class DBApp implements DBAppInterface {
     public static void main(String[] args) throws IOException {
         DBApp dbApp = new DBApp();
         dbApp.init();
-        String tableName = "students";
 
-//        Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
-//        htblColNameType.put("id", "java.lang.String");
-//        htblColNameType.put("first_name", "java.lang.String");
-//        // htblColNameType.put("last_name", "java.lang.String");
-//        // htblColNameType.put("dob", "java.util.Date");
-//        // htblColNameType.put("gpa", "java.lang.Double");
-//
-//        Hashtable<String, String> minValues = new Hashtable<>();
-//        minValues.put("id", "43-0000");
-//        minValues.put("first_name", "AAAAAA");
-//        // minValues.put("last_name", "AAAAAA");
-//        // minValues.put("dob", "1990-01-01");
-//        // minValues.put("gpa", "0.7");
-//
-//        Hashtable<String, String> maxValues = new Hashtable<>();
-//        maxValues.put("id", "99-9999");
-//        maxValues.put("first_name", "zzzzzz");
-//        // maxValues.put("last_name", "zzzzzz");
-//        // maxValues.put("dob", "2000-12-31");
-//        // maxValues.put("gpa", "5.0");
-//
-//        // try {
-//        // dbApp.createTable(tableName, "id", htblColNameType, minValues, maxValues);
-//        // } catch (DBAppException e) {
-//        // // TODO Auto-generated catch block
-//        // e.printStackTrace();
-//        // }
-//
-//        Hashtable<String, Object> colNameValue = new Hashtable<String, Object>();
-//        colNameValue.put("id", "46-9261");
-//        colNameValue.put("first_name", "dadad");
-//
-//        try {
-//            dbApp.insertIntoTable("students", colNameValue);
-//        } catch (DBAppException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        }
-
-        // try {
-        // dbApp.deleteFromTable(tableName, colNameValue);
-        // } catch (DBAppException e) {
-        // // TODO Auto-generated catch block
-        // e.printStackTrace();
-        // }
-        SQLTerm[] sqlTerms = new SQLTerm[1];
-        String[] strarrOperators = new String[1];
-
-        try {
-            Iterator iterator = dbApp.selectFromTable(sqlTerms, strarrOperators);
-            System.out.println(iterator.next());
-            System.out.println(iterator.next());
-
-        } catch (DBAppException e) {
-            e.printStackTrace();
+        Table table = (Table) dbApp.deserializeFile("src/main/tables/pcs.class");
+        Vector<PageData> pagesData = table.getPagesInfo();
+        int pageNo = 1;
+        System.out.println("page " + "min" + " max" + " rows");
+        for (PageData pageData : pagesData
+        ) {
+            System.out.println("  " + pageNo++ + " " + pageData);
         }
     }
 }

@@ -1,9 +1,5 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Serializable;
+
+import java.io.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -50,11 +46,11 @@ public class Page implements Serializable {
         Collections.sort(pageRows);
     }
 
-    public void deleteRow(int index){
+    public void deleteRow(int index) {
         pageRows.remove(index);
     }
 
-    public Row getRow(int index){
+    public Row getRow(int index) {
         return pageRows.get(index);
     }
 
@@ -78,13 +74,46 @@ public class Page implements Serializable {
         return rowCount == maxCount;
     }
 
-    public static void main(String[] args) {
-        String min = "AAAAA";
-        String input= "b";
-       
-        System.out.println(input.compareTo(min));
-        // post num means input > min
-        // negative num means input < min
-        // zero means input = min
+
+    public static int getFirstDiffCharIndex(String a, String b) {
+        for (int i = 0; i < a.length(); i++) {
+            if (a.charAt(i) != b.charAt(i))
+                return i;
+        }
+
+        return -1;
     }
+
+    public static void main(String[] args) throws ParseException {
+//        Date[] divisions = new Date[10];
+//
+//        Date minValue = new SimpleDateFormat("yyyy-MM-dd").parse("2000-04-07");
+//        Date maxValue = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-04");
+//
+//        long minStamp = minValue.getTime();
+//        long maxStamp = maxValue.getTime();
+//
+//        long division =  ((maxStamp - minStamp) / 10);
+//        System.out.println(division);
+//
+//        long x = minStamp;
+//
+//
+//        for (int i = 0; i < 10; i++) {
+//            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+//
+//            Calendar c = Calendar.getInstance();
+//
+//            c.setTimeInMillis(x + division);
+//            x += division;
+//            divisions[i] = c.getTime();
+////            divisions[i] = sdf.format(c.getTime());
+//        }
+//
+//        System.out.println(Arrays.toString(divisions));
+
+
+    }
+
 }
+

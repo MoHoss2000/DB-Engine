@@ -9,12 +9,17 @@ public class Table implements Serializable {
     private final String tableName;
     private final String primaryKey; // name of primary column
     private Vector<PageData> pagesInfo;
+    private Vector<Index> indices;
 
 
     public Table(String tableName, String primaryKey) {
         this.tableName = tableName;
         pagesInfo = new Vector<PageData>();
         this.primaryKey = primaryKey;
+    }
+
+    public Vector<Index> getIndices(){
+        return indices;
     }
 
     public int getNoOfPages() {
@@ -53,6 +58,9 @@ public class Table implements Serializable {
 
             if (arr[mid].compareTo(x) == 0)
                 return mid;
+
+            if (arr[mid+1].compareTo(x) == 0)
+                return mid + 1;
 
             if (arr[mid].compareTo(x) < 0 && arr[mid + 1].compareTo(x) > 0)
                 return mid;
