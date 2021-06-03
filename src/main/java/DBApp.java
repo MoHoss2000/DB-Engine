@@ -30,10 +30,6 @@ public class DBApp implements DBAppInterface {
         }
         maxNoOfRows = Integer.parseInt(prop.getProperty("MaximumRowsCountinPage")); // max row limit
 
-        File directory = new File("src/main/tables");
-        if (!directory.exists()) {
-            directory.mkdir();
-        }
 
     }
 
@@ -147,28 +143,18 @@ public class DBApp implements DBAppInterface {
             }
         }
 
-        // File tableFolderDir = new File("src/main/pages/" + tableName); // setting the
-        // path of the new folder
-        // // Creating the directory
-        // tableFolderDir.mkdir();
+        File tableFolderDir = new File("src/main/resources/data/" + tableName);
+
+        // Creating the directory
+        tableFolderDir.mkdir();
 
         Table newTable = new Table(tableName, clusteringKey);
-        serializeObject(newTable, "src/main/tables/" + tableName + ".class");
+        serializeObject(newTable, newTable.getFolderPath() + "/info.class");
     }
-
-//    public static int getIndexInArray(String colName, String[] colNames) {
-//        for (int i = 0; i < colNames.length; i++) {
-//            if (colNames[i].equals(colName)) {
-//                return i;
-//            }
-//        }
-//
-//        return -1;
-//    }
 
     @Override
     public void createIndex(String tableName, String[] columnNames) throws DBAppException {
-        String tablePath = "src/main/tables/" + tableName + ".class";
+        String tablePath = "src/main/resources/data/" + tableName + "/info.class";
         Table table = (Table) deserializeFile(tablePath);
         List<String> colNamesList = Arrays.asList(columnNames);
 
@@ -235,12 +221,12 @@ public class DBApp implements DBAppInterface {
                 throw new DBAppException("Invalid column name");
         }
 
-        Vector<Index> indices = table.getIndices();
+        Vector<GIndex> indices = table.getIndices();
 
         // checking if index with same columns already exists
-        for (Index index : indices
+        boolean flag = true;
+        for (GIndex index : indices
         ) {
-            boolean flag = true;
             String[] indexColNames = index.getColNames();
             if (indexColNames.length == columnNames.length) {
                 for (int i = 0; i < indexColNames.length; i++) {
@@ -251,18 +237,20 @@ public class DBApp implements DBAppInterface {
                 }
             } else {
                 flag = false;
+                break;
             }
 
-            if (flag)
-                throw new DBAppException("Index with these column names already exists");
+
         }
+
+//        if (flag)
+//            throw new DBAppException("Index with these column names already exists");
+
+        table.addIndex(columnNames, minValues, maxValues);
+        serializeObject(table, tablePath);
+
     }
 
-    public Comparable[] getDivisions(Comparable min, Comparable max) {
-
-
-        return null;
-    }
 
     public void serializeObject(Serializable object, String path) {
         try {
@@ -298,7 +286,7 @@ public class DBApp implements DBAppInterface {
     // x,y,z,a == column i want to insert
     @Override
     public void insertIntoTable(String tableName, Hashtable<String, Object> colNameValue) throws DBAppException {
-        String tablePath = "src/main/tables/" + tableName + ".class";
+        String tablePath = "src/main/resources/data/" + tableName + "/info.class";
         Table table = (Table) deserializeFile(tablePath);
 
         if (!checkName(tableName))
@@ -383,8 +371,13 @@ public class DBApp implements DBAppInterface {
         Row newRow = new Row(colNameValue, primaryKey);
 
         if (table.getNoOfPages() == 0) { // inserting for 1st time - create page
+            File pagesFolderDir = new File(table.getFolderPath() + "/pages");
+
+            // Creating the directory
+            pagesFolderDir.mkdir();
             table.addPage(newRow);
-            serializeObject(table, "src/main/tables/" + tableName + ".class");
+
+            serializeObject(table, "src/main/resources/data/" + tableName + "/info.class");
         } else {
             PageData pageData = table.getPageForKey(newRow.getPrimaryKeyValue());
             String pagePath = pageData.getPagePath();
@@ -500,7 +493,7 @@ public class DBApp implements DBAppInterface {
     public void updateTable(String tableName, String clusteringKeyValue, Hashtable<String, Object> columnNameValue)
             throws DBAppException {
 
-        String tablePath = "src/main/tables/" + tableName + ".class";
+        String tablePath = "src/main/resources/data/" + tableName + "/info.class";
         Table table = (Table) deserializeFile(tablePath);
 
         if (!checkName(tableName))
@@ -618,7 +611,7 @@ public class DBApp implements DBAppInterface {
         if (!checkName(tableName))
             throw new DBAppException("Table not found aslan!");
 
-        String tablePath = "src/main/tables/" + tableName + ".class";
+        String tablePath = "src/main/resources/data/" + tableName + "/info.class";
         Table table = (Table) deserializeFile(tablePath);
 
         String tablePrimaryCol = table.getPrimaryKeyCol(); // name of column
@@ -777,7 +770,7 @@ public class DBApp implements DBAppInterface {
         if (!checkName(tableName))
             throw new DBAppException("Table name not found aslan!");
 
-        String tablePath = "src/main/tables/" + tableName + ".class";
+        String tablePath = "src/main/resources/data/" + tableName + "/info.class";
         Table table = (Table) deserializeFile(tablePath);
 
         for (SQLTerm sqlTerm : sqlTerms) {

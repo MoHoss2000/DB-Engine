@@ -1,8 +1,8 @@
-
 import java.io.*;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Collections;
+import java.util.Properties;
+import java.util.Vector;
 
 public class Page implements Serializable {
     private static final long serialVersionUID = 2529685098267757690L;
@@ -74,15 +74,6 @@ public class Page implements Serializable {
         return rowCount == maxCount;
     }
 
-
-    public static int getFirstDiffCharIndex(String a, String b) {
-        for (int i = 0; i < a.length(); i++) {
-            if (a.charAt(i) != b.charAt(i))
-                return i;
-        }
-
-        return -1;
-    }
 
     public static void main(String[] args) throws ParseException {
 //        Date[] divisions = new Date[10];

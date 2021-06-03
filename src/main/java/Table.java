@@ -9,16 +9,41 @@ public class Table implements Serializable {
     private final String tableName;
     private final String primaryKey; // name of primary column
     private Vector<PageData> pagesInfo;
-    private Vector<Index> indices;
-
+    private Vector<GIndex> indices;
+//    private Vector<IndexData> indicesPaths;
 
     public Table(String tableName, String primaryKey) {
         this.tableName = tableName;
         pagesInfo = new Vector<PageData>();
+        indices = new Vector<GIndex>();
         this.primaryKey = primaryKey;
     }
 
-    public Vector<Index> getIndices(){
+    public String getFolderPath(){
+        return "src/main/resources/data/" + tableName;
+    }
+
+    public void addIndex(String[] columnNames, Comparable[] minValues, Comparable[] maxValues){
+        GIndex index = new GIndex(columnNames, minValues, maxValues, getFolderPath());
+
+        Page page = null;
+
+        for (PageData pageData : pagesInfo) {
+            page = (Page) deserializeFile(pageData.getPagePath());
+
+            for (int j = 0; j < pageData.getNoOfRows(); j++) {
+                Row row = page.getRow(j);
+                index.insertKeyIntoGIndex(row, j, pageData);
+
+            }
+
+
+        }
+
+        indices.add(index);
+    }
+
+    public Vector<GIndex> getIndices(){
         return indices;
     }
 
@@ -86,12 +111,12 @@ public class Table implements Serializable {
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         long fileName = timestamp.getTime();
 
-        String pagePath = "src/main/resources/data/" + fileName + ".class";
+        String pagePath =  "src/main/resources/data/" + tableName +  "/pages/" + fileName + ".class";
 
         PageData pageData = new PageData(pagePath, row.getPrimaryKeyValue(), row.getPrimaryKeyValue(), 1);
         pagesInfo.add(pageData);
 
-        Collections.sort(pagesInfo); // 3ashwa2eya
+        Collections.sort(pagesInfo);
 
         serializeObject(newPage, pagePath);
     }
@@ -127,10 +152,8 @@ public class Table implements Serializable {
             result = in.readObject();
             in.close();
             fileIn.close();
-        } catch (IOException i) {
+        } catch (IOException | ClassNotFoundException i) {
             i.printStackTrace();
-        } catch (ClassNotFoundException c) {
-            c.printStackTrace();
         }
 
         return result;

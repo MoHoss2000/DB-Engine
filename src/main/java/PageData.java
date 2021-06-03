@@ -9,14 +9,12 @@ public class PageData implements Serializable, Comparable {
     private Comparable minKey;
     private Comparable maxKey;
     private int noOfRows;
-    private Vector<PageData> overflowPagesData;
 
     public PageData(String pagePath, Comparable minKey, Comparable maxKey, int noOfRows) {
         this.pagePath = pagePath;
         this.minKey = minKey;
         this.maxKey = maxKey;
         this.noOfRows = noOfRows;
-        overflowPagesData = new Vector<PageData>();
     }
 
     public int getNoOfRows() {
@@ -51,28 +49,6 @@ public class PageData implements Serializable, Comparable {
         maxKey = key;
     }
 
-    public void addNewOverflowPage(Row row){
-        Page newPage = new Page();
-        newPage.addRow(row);
-
-        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-        long fileName = timestamp.getTime();
-
-        String pagePath = "src/main/resources/data/"+ fileName + ".class";
-
-        PageData pageData = new PageData(pagePath, row.getPrimaryKeyValue(), row.getPrimaryKeyValue(), 1);
-        overflowPagesData.add(pageData);
-
-        serializeObject(newPage, pagePath);
-    }
-
-    public Vector<PageData> getOverflowPagesData(){
-        return overflowPagesData;
-    }
-
-    public void setOverflowPagesData(Vector<PageData> overflows){
-        overflowPagesData = overflows;
-    }
 
     @Override
     public int compareTo(Object o) {
