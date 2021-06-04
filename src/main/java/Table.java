@@ -118,6 +118,8 @@ public class Table implements Serializable {
 
         Collections.sort(pagesInfo);
 
+        DBApp.insertRowIntoAllIndices(this, row, newPage, pageData);
+
         serializeObject(newPage, pagePath);
     }
 

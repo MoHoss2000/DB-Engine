@@ -46,6 +46,58 @@ public class GIndex implements Serializable {
         return -1;
     }
 
+    public void deleteKeyFromGIndex(Row row, PageData pageData, int rowIndex) {
+        int[] arrPositions = new int[colNames.length];
+
+        for (int i = 0; i < colNames.length; i++) {
+            Comparable colMin = minValues[i];
+            Comparable colMax = maxValues[i];
+
+            Comparable[] divisions = getDivisions(colMin, colMax);
+            Comparable colValue = row.getValueForCol(colNames[i]);
+
+            arrPositions[i] = findPosInDivisions(divisions, colValue);
+        }
+
+        Object[] x = gridIndex;
+        for (int i = 0; i < arrPositions.length; i++) {
+            int indexInDiv = arrPositions[i];
+
+            Vector<PageData> bucketsData;
+
+            // reached the actual cells (last dim)
+            if (i == arrPositions.length - 1) {
+                bucketsData = (Vector<PageData>) x[indexInDiv];
+
+                for (int j = 0; j < bucketsData.size(); j++) {
+                    PageData bucketData = bucketsData.get(j);
+
+                    Bucket bucket = (Bucket) deserializeFile(bucketData.getPagePath());
+
+                    if (bucket.deleteKey(pageData, rowIndex)) {
+                        bucketData.decrementRows();
+
+                        if (bucketData.getNoOfRows() == 0) {
+                            bucketsData.remove(bucketData);
+                            File bucketFile = new File(bucketData.getPagePath());
+                            bucketFile.delete();
+                            return;
+                        }
+
+                        serializeObject(bucket, bucketData.getPagePath());
+                        return;
+                    }
+                }
+            } else
+                // access the next dim
+                x = (Object[]) x[indexInDiv];
+
+
+        }
+
+
+    }
+
     public void insertKeyIntoGIndex(Row row, int rowIndexInPage, PageData pageData) {
         int[] arrPositions = new int[colNames.length];
 
@@ -252,6 +304,5 @@ public class GIndex implements Serializable {
 //        GIndex index = new GIndex(colNames, minValues, maxValues);
         Row row = new Row(rowData, "id");
 //        index.insertKeyIntoGIndex(row);
-
     }
 }

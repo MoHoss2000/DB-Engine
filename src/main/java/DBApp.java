@@ -273,17 +273,13 @@ public class DBApp implements DBAppInterface {
             result = in.readObject();
             in.close();
             fileIn.close();
-        } catch (IOException i) {
+        } catch (IOException | ClassNotFoundException i) {
             i.printStackTrace();
-        } catch (ClassNotFoundException c) {
-            c.printStackTrace();
         }
 
         return result;
     }
 
-    // x, y, z == table columns
-    // x,y,z,a == column i want to insert
     @Override
     public void insertIntoTable(String tableName, Hashtable<String, Object> colNameValue) throws DBAppException {
         String tablePath = "src/main/resources/data/" + tableName + "/info.class";
@@ -388,9 +384,12 @@ public class DBApp implements DBAppInterface {
                 throw new DBAppException("Duplicate primary key");
             }
 
+
             // the page i want to insert in is not full
             if (pageData.getNoOfRows() < maxNoOfRows) {
                 page.addRow(newRow);
+                insertRowIntoAllIndices(table, newRow, page, pageData);
+
                 pageData.incrementRows();
                 pageData.setMinKey(page.getMinValue());
                 pageData.setMaxKey(page.getMaxValue());
@@ -412,17 +411,21 @@ public class DBApp implements DBAppInterface {
                     // i need to shift the max key to the new page
 
                     Row lastRow = page.removeLastRow(); // old max
+                    deleteRowFromAllIndices(table, lastRow, page, pageData);
 
                     page.addRow(newRow);
+                    insertRowIntoAllIndices(table, newRow, page, pageData);
 
                     pageData.setMaxKey(page.getMaxValue());
                     pageData.setMinKey(page.getMinValue());
 
                     table.addPage(lastRow);
 
+
                     serializeObject(page, pageData.getPagePath());
                 } else {
                     table.addPage(newRow);
+
                 }
 
                 serializeObject(table, tablePath);
@@ -435,8 +438,12 @@ public class DBApp implements DBAppInterface {
                 Comparable maxInOldPage = pageData.getMaxKey();
                 if (newRow.getPrimaryKeyValue().compareTo(maxInOldPage) < 0) {
                     Row lastRow = page.removeLastRow();
+                    deleteRowFromAllIndices(table, lastRow, page, pageData);
+
 
                     page.addRow(newRow);
+                    insertRowIntoAllIndices(table, newRow, page, pageData);
+
 
                     pageData.setMaxKey(page.getMaxValue());
                     pageData.setMinKey(page.getMinValue());
@@ -445,6 +452,9 @@ public class DBApp implements DBAppInterface {
                     page = (Page) deserializeFile(nextPageData.getPagePath()); // next page
 
                     page.addRow(lastRow);
+                    insertRowIntoAllIndices(table, lastRow, page, nextPageData);
+
+
                     nextPageData.setMaxKey(page.getMaxValue());
                     nextPageData.setMinKey(page.getMinValue());
                     nextPageData.incrementRows();
@@ -453,6 +463,8 @@ public class DBApp implements DBAppInterface {
                 } else {
                     page = (Page) deserializeFile(nextPageData.getPagePath()); // next page
                     page.addRow(newRow);
+                    insertRowIntoAllIndices(table, newRow, page, nextPageData);
+
 
                     nextPageData.setMaxKey(page.getMaxValue());
                     nextPageData.setMinKey(page.getMinValue());
@@ -471,8 +483,10 @@ public class DBApp implements DBAppInterface {
                 // i need to shift the max key to the new page
 
                 Row lastRow = page.removeLastRow(); // old max
+                deleteRowFromAllIndices(table, lastRow, page, pageData);
 
                 page.addRow(newRow);
+                insertRowIntoAllIndices(table, newRow, page, pageData);
 
                 pageData.setMaxKey(page.getMaxValue());
                 pageData.setMinKey(page.getMinValue());
@@ -486,6 +500,26 @@ public class DBApp implements DBAppInterface {
 
             serializeObject(table, tablePath);
             return;
+        }
+    }
+
+    public static void insertRowIntoAllIndices(Table table, Row row, Page page, PageData pageData) {
+        int rowIndex = page.getRowIndex(row);
+
+        Vector<GIndex> tableIndices = table.getIndices();
+        for (GIndex index : tableIndices
+        ) {
+            index.insertKeyIntoGIndex(row, rowIndex, pageData);
+        }
+    }
+
+    public static void deleteRowFromAllIndices(Table table, Row row, Page page, PageData pageData) {
+        int rowIndex = page.getRowIndex(row);
+
+        Vector<GIndex> tableIndices = table.getIndices();
+        for (GIndex index : tableIndices
+        ) {
+            index.deleteKeyFromGIndex(row, pageData, rowIndex);
         }
     }
 
@@ -627,7 +661,6 @@ public class DBApp implements DBAppInterface {
                 String csvTableName = data[0];
                 String colName = data[1];
                 String colType = data[2];
-                boolean isPrimary = Boolean.parseBoolean(data[3]);
 
                 Comparable minValue = null;
                 Comparable maxValue = null;
@@ -698,7 +731,10 @@ public class DBApp implements DBAppInterface {
 
             if (rowIndex >= 0) {
                 // page has the primary key
+                Row rowToDelete = page.getRow(rowIndex);
+
                 deleteRowFromMainPage(page, pageData, table, columnNameValue, rowIndex);
+                deleteRowFromAllIndices(table, rowToDelete, page, pageData);
             }
 
         } else {
@@ -713,6 +749,9 @@ public class DBApp implements DBAppInterface {
                     Row tempRow = page.getRow(j);
                     if (checkAllColumns(tempRow, columnNameValue)) {
                         deleteRowFromMainPage(page, pageData, table, columnNameValue, j);
+
+                        deleteRowFromAllIndices(table, tempRow, page, pageData);
+
                     }
                 }
             }
@@ -773,36 +812,67 @@ public class DBApp implements DBAppInterface {
         String tablePath = "src/main/resources/data/" + tableName + "/info.class";
         Table table = (Table) deserializeFile(tablePath);
 
-        for (SQLTerm sqlTerm : sqlTerms) {
+        boolean allANDs = true;
+
+        for (String operator : arrayOperators
+        ) {
+            if (!operatorsBetween.contains(operator))
+                throw new DBAppException("Invalid operator");
+
+            if (!operator.equals("AND")) {
+                allANDs = false;
+                break;
+            }
+        }
+
+        String[] colNames = new String[sqlTerms.length];
+        String primaryCol = "";
+
+        for (int i = 0; i < sqlTerms.length; i++) {
+            SQLTerm sqlTerm = sqlTerms[i];
             if (!sqlTerm._strTableName.equals(tableName))
                 throw new DBAppException("Engine doesn't support joins!");
 
             if (!operatorsInside.contains(sqlTerm._strOperator))
                 throw new DBAppException("Invalid operator");
 
+            colNames[i] = sqlTerm._strColumnName;
+
             if (sqlTerm._strColumnName.equals(table.getPrimaryKeyCol())) {
-                // need to do binary search on primary key
-                try {
-                    Comparable primaryKeyVal = (Comparable) sqlTerm._objValue;
-                    PageData pageData = table.getPageForKey(primaryKeyVal);
-                    Page page = (Page) deserializeFile(pageData.getPagePath());
+                primaryCol = sqlTerm._strColumnName;
+            }
+        }
 
-                    Hashtable<String, Object> dummyRowHashtable = new Hashtable<>();
-                    dummyRowHashtable.put(table.getPrimaryKeyCol(), primaryKeyVal);
-                    Row dummyRow = new Row(dummyRowHashtable, table.getPrimaryKeyCol());
+        if (allANDs) {
+            Vector<GIndex> tableIndices = table.getIndices();
+            for (int i = 0; i < tableIndices.size(); i++) {
+                GIndex index = tableIndices.get(i);
 
-                    int rowIndex = page.binarySearchInPage(dummyRow);
-                    Row row = page.getRow(rowIndex);
-
-                } catch (Exception e) {
-                    throw new DBAppException("Invalid data types");
+                if (indexYenfa3Ma3Columns(colNames, index)) {
+                    // use index to search
                 }
             }
 
-
+            if (!primaryCol.equals("")) {
+                // binary search
+            }
         }
 
+
         return resultSet.iterator();
+    }
+
+    public boolean indexYenfa3Ma3Columns(String[] colNames, GIndex index) {
+        List<String> indexColNames = Arrays.asList(index.getColNames());
+
+        for (String colName : colNames
+        ) {
+            if (!indexColNames.contains(colName)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public static void main(String[] args) throws IOException {

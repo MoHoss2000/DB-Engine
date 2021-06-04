@@ -11,11 +11,26 @@ public class Bucket implements Serializable {
         keys = new Vector<>();
     }
 
-    public void addKey(PageData pageData, int rowIndexInPage){
+    public void addKey(PageData pageData, int rowIndexInPage) {
         Hashtable<String, Object> rowRef = new Hashtable<String, Object>();
         rowRef.put("pageRef", pageData);
         rowRef.put("rowRef", rowIndexInPage);
         keys.add(rowRef);
+    }
+
+    public boolean deleteKey(PageData pageData, int rowIndexInPage) {
+        for (Hashtable<String, Object> key : keys
+        ) {
+            PageData pageDataInBucket = (PageData) key.get("pageRef");
+            int rowIndexInBucket = (int) key.get("rowRef");
+
+            if(rowIndexInBucket == rowIndexInPage && pageDataInBucket == pageData){
+                keys.remove(key);
+                return true;
+            }
+        }
+
+        return false;
     }
 
 }

@@ -46,6 +46,10 @@ public class Page implements Serializable {
         Collections.sort(pageRows);
     }
 
+    public int getRowIndex(Row row){
+        return pageRows.indexOf(row);
+    }
+
     public void deleteRow(int index) {
         pageRows.remove(index);
     }
