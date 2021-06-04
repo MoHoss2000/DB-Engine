@@ -843,6 +843,7 @@ public class DBApp implements DBAppInterface {
             }
         }
 
+
         if (allANDs) {
             Vector<GIndex> tableIndices = table.getIndices();
             for (int i = 0; i < tableIndices.size(); i++) {
