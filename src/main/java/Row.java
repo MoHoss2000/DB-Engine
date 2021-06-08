@@ -34,9 +34,18 @@ public class Row implements Serializable, Comparable<Object> {
 
     }
 
-//    String toString(){
-//
-//    }
+    public String toString(){
+        String string = "";
+
+        Enumeration<String> enumeration = rowData.keys();
+
+        while (enumeration.hasMoreElements()) {
+            String key = enumeration.nextElement();
+            string += rowData.get(key) + ", ";
+        }
+
+        return string;
+    }
 
     public static void main(String[] args) {
         Vector<Row> page = new Vector<Row>();

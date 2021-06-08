@@ -796,11 +796,11 @@ public class DBApp implements DBAppInterface {
     }
 
     @Override
-    public Iterator selectFromTable(SQLTerm[] sqlTerms, String[] arrayOperators) throws DBAppException {
+    public Iterator<String> selectFromTable(SQLTerm[] sqlTerms, String[] arrayOperators) throws DBAppException {
         if (sqlTerms.length != arrayOperators.length + 1)
             throw new DBAppException("Invalid Data Entry");
 
-        ArrayList resultSet = new ArrayList();
+        ArrayList<String> resultSet = new ArrayList<String>();
 
         List<String> operatorsInside = Arrays.asList(operatorsInsideTerm);
         List<String> operatorsBetween = Arrays.asList(operatorsBetweenTerms);
@@ -843,24 +843,105 @@ public class DBApp implements DBAppInterface {
             }
         }
 
+//
+//        if (allANDs) {
+//            Vector<GIndex> tableIndices = table.getIndices();
+//            for (int i = 0; i < tableIndices.size(); i++) {
+//                GIndex index = tableIndices.get(i);
+//
+//                if (indexYenfa3Ma3Columns(colNames, index)) {
+//                    // use index to search
+//                }
+//            }
+//
+//            if (!primaryCol.equals("")) {
+//                // binary search
+//            }
+//        }
 
-        if (allANDs) {
-            Vector<GIndex> tableIndices = table.getIndices();
-            for (int i = 0; i < tableIndices.size(); i++) {
-                GIndex index = tableIndices.get(i);
+        // linear search
+        Vector<PageData> allPagesData = table.getPagesInfo();
 
-                if (indexYenfa3Ma3Columns(colNames, index)) {
-                    // use index to search
+        Page page = null;
+        for (int i = 0; i < allPagesData.size(); i++) {
+            PageData pageData = allPagesData.get(i);
+            page = (Page) deserializeFile(pageData.getPagePath());
+
+            Row row;
+            for (int j = 0; j < pageData.getNoOfRows(); j++) {
+                row = page.getRow(j);
+                Boolean[] flags = checkRowMatchesWhichTerms(row, sqlTerms);
+                Boolean matchesQuery = checkOperatorsBetweenTerms(flags, arrayOperators);
+
+                if(matchesQuery){
+                    resultSet.add(row.toString());
                 }
             }
+        }
 
-            if (!primaryCol.equals("")) {
-                // binary search
+        return resultSet.iterator();
+    }
+
+    public static boolean checkOperatorsBetweenTerms(Boolean[] sqlTermEvaluation, String[] operatorsBetweenTerms) {
+        List<Boolean> termsEvaluationList =  new LinkedList<Boolean>(Arrays.asList(sqlTermEvaluation));
+        List<String> operatorsList =  new LinkedList<String>(Arrays.asList(operatorsBetweenTerms));
+
+        while (termsEvaluationList.size() > 1) {
+            String operator = operatorsList.remove(0);
+            Boolean flag1 = termsEvaluationList.remove(0);
+            Boolean flag2 = termsEvaluationList.remove(0);
+
+            switch (operator){
+                case "AND":
+                    termsEvaluationList.add(0, flag1 && flag2);
+                    break;
+                case  "OR":
+                    termsEvaluationList.add(0, flag1 || flag2);
+                    break;
+                case "XOR":
+                    termsEvaluationList.add(0, flag1 ^ flag2);
+                    break;
             }
         }
 
 
-        return resultSet.iterator();
+        return termsEvaluationList.get(0);
+    }
+
+    public static Boolean[] checkRowMatchesWhichTerms(Row row, SQLTerm[] sqlTerms) {
+        Boolean[] flags = new Boolean[sqlTerms.length];
+
+        for (int i = 0; i < sqlTerms.length; i++) {
+            SQLTerm sqlTerm = sqlTerms[i];
+            String colName = sqlTerm._strColumnName;
+            Comparable colValueInTerm = (Comparable) sqlTerm._objValue;
+            String operator = sqlTerm._strOperator;
+
+            Comparable colValueInTable = row.getValueForCol(colName);
+
+            switch (operator) {
+                case ">":
+                    flags[i] = colValueInTable.compareTo(colValueInTerm) > 0;
+                    break;
+                case ">=":
+                    flags[i] = colValueInTable.compareTo(colValueInTerm) >= 0;
+                    break;
+                case "<":
+                    flags[i] = colValueInTable.compareTo(colValueInTerm) < 0;
+                    break;
+                case "<=":
+                    flags[i] = colValueInTable.compareTo(colValueInTerm) <= 0;
+                    break;
+                case "!=":
+                    flags[i] = colValueInTable.compareTo(colValueInTerm) != 0;
+                    break;
+                case "=":
+                    flags[i] = colValueInTable.compareTo(colValueInTerm) == 0;
+                    break;
+            }
+        }
+
+        return flags;
     }
 
     public boolean indexYenfa3Ma3Columns(String[] colNames, GIndex index) {
@@ -877,16 +958,21 @@ public class DBApp implements DBAppInterface {
     }
 
     public static void main(String[] args) throws IOException {
-        DBApp dbApp = new DBApp();
-        dbApp.init();
+//        DBApp dbApp = new DBApp();
+//        dbApp.init();
+//
+//        Table table = (Table) dbApp.deserializeFile("src/main/tables/pcs.class");
+//        Vector<PageData> pagesData = table.getPagesInfo();
+//        int pageNo = 1;
+//        System.out.println("page " + "min" + " max" + " rows");
+//        for (PageData pageData : pagesData
+//        ) {
+//            System.out.println("  " + pageNo++ + " " + pageData);
+//        }
+//
+        Boolean[] terms = {true, true};
+        String[] operators = {"XOR"};
 
-        Table table = (Table) dbApp.deserializeFile("src/main/tables/pcs.class");
-        Vector<PageData> pagesData = table.getPagesInfo();
-        int pageNo = 1;
-        System.out.println("page " + "min" + " max" + " rows");
-        for (PageData pageData : pagesData
-        ) {
-            System.out.println("  " + pageNo++ + " " + pageData);
-        }
+        System.out.println(checkOperatorsBetweenTerms(terms, operators));
     }
 }

@@ -158,7 +158,7 @@ public class Milestone2Tests {
 
         DBApp dbApp = new DBApp();
         dbApp.init();
-        Iterator resultSet = dbApp.selectFromTable(arrSQLTerms , strarrOperators);
+
     }
 
     @Test
@@ -211,12 +211,13 @@ public class Milestone2Tests {
         arrSQLTerms[1]._strOperator = "<=";
         arrSQLTerms[1]._objValue = row.get("gpa");
 
+
         String[]strarrOperators = new String[1];
         strarrOperators[0] = "OR";
 
         DBApp dbApp = new DBApp();
         dbApp.init();
-        Iterator resultSet = dbApp.selectFromTable(arrSQLTerms , strarrOperators);
+
     }
 
     @Test
@@ -274,7 +275,11 @@ public class Milestone2Tests {
 // select * from Student where name = “John Noor” or gpa = 1.5;
         DBApp dbApp = new DBApp();
         dbApp.init();
-        Iterator resultSet = dbApp.selectFromTable(arrSQLTerms , strarrOperators);
+//        Iterator resultSet = dbApp.selectFromTable(arrSQLTerms , strarrOperators);
+//
+//        while (resultSet.hasNext()){
+//            System.out.println(resultSet.next());
+//        }
     }
 
 
